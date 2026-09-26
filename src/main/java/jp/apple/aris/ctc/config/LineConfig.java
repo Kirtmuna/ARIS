@@ -21,7 +21,7 @@ public class LineConfig {
     }
     // 区間-config
     public static class SectionConfig {
-        public String sectionRail; // その区間とするレールのID
+        public String[] sectionRails; // その区間とするレールのID
         public String startSignal;    // 区間開始信号機のID
         public String endSignal;      // 区間終了信号機のID
     }

@@ -4,7 +4,9 @@ import jp.apple.aris.ArisCore;
 import jp.apple.aris.ctc.config.LineConfig;
 import jp.apple.aris.ctc.config.LineManager;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class LineStateManager {
@@ -54,11 +56,21 @@ public class LineStateManager {
                     String secId = secEntry.getKey();
                     LineConfig.SectionConfig secConfig = secEntry.getValue();
                     
-                    RailState targetRail = railMap.get(secConfig.sectionRail);
+                    List<RailState> targetRails = new ArrayList<>();
+                    
+                    if (secConfig.sectionRails != null) {
+                        for (String railId : secConfig.sectionRails) {
+                            RailState rState = railMap.get(railId);
+                            if (rState != null) {
+                                targetRails.add(rState);
+                            }
+                        }
+                    }
+
                     SignalState startSig = signalMap.get(secConfig.startSignal);
                     SignalState endSig = signalMap.get(secConfig.endSignal);
                     
-                    SectionState sectionState = new SectionState(secId, secConfig, targetRail, startSig, endSig);
+                    SectionState sectionState = new SectionState(secId, secConfig, targetRails, startSig, endSig);
                     sectionMap.put(secId, sectionState);
                 }
             }

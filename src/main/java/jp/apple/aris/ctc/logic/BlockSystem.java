@@ -1,6 +1,7 @@
 package jp.apple.aris.ctc.logic;
 
 import jp.apple.aris.ctc.state.LineStateManager;
+import jp.apple.aris.ctc.state.RailState;
 import jp.apple.aris.ctc.state.SectionState;
 import jp.apple.aris.ctc.state.SignalState;
 import net.minecraft.world.World;
@@ -19,10 +20,15 @@ public class BlockSystem {
 
             // 1. 全線レールの状態を最新にし、区間の基本ステータスを確定させる
             for (SectionState section : sectionMap.values()) {
-                if (section == null || section.getSectionRail() == null) continue;
+                if (section == null) continue;
 
-                section.getSectionRail().updateOccupancy(world);
-                if (section.getSectionRail().isOccupied()) {
+                for (RailState rail : section.getSectionRails()) {
+                    if (rail != null) {
+                        rail.updateOccupancy(world);
+                    }
+                }
+                
+                if (section.checkAnyRailOccupied()) {
                     section.setStatus(1); // 在線
                 } else {
                     section.setStatus(0); // 空き
