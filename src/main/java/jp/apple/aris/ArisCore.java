@@ -25,6 +25,8 @@ public class ArisCore {
     public void preInit(FMLPreInitializationEvent event) {
         LOGGER.info("Loaded: {}",Tags.MOD_NAME);
 
+        ArisNetwork.init();
+
         Object touch = ArisItem.RAIL_REGISTER_TOOL;
         
         File currentModFile = event.getSourceFile();
