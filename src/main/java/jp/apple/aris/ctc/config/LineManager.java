@@ -7,6 +7,7 @@ import jp.apple.aris.util.ArisDir;
 
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -47,6 +48,23 @@ public class LineManager {
             }
         }
         ArisCore.LOGGER.info("ARIS: 合計 {} 件の路線データをメモリに保持しました", LOADED_LINES.size());
+    }
+    /**
+     * 指定された路線の設計図を、元のJSONファイルに上書き保存する
+     * @param lineId 路線ID（ファイル名）
+     */
+    public static void saveLine(String lineId) {
+        LineConfig config = LOADED_LINES.get(lineId);
+        if (config == null) return;
+
+        File file = new File(ArisDir.lineDirectory, lineId + ".json");
+
+        try (FileWriter writer = new FileWriter(file)) {
+            GSON.toJson(config, writer);
+            ArisCore.LOGGER.info("ARIS: レールのコア座標への自動書換が完了しました: {}.json", lineId);
+        } catch (IOException e) {
+            ArisCore.LOGGER.error("ARIS: 路線ファイルの自動書換に失敗しました: " + file.getName(), e);
+        }
     }
 
     /**

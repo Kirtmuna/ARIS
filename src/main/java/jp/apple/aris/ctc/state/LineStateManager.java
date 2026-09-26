@@ -37,7 +37,7 @@ public class LineStateManager {
                 for (Map.Entry<String, LineConfig.RailConfig> railEntry : config.rails.entrySet()) {
                     String railId = railEntry.getKey();
                     
-                    RailState railState = new RailState(railId, railEntry.getValue());
+                    RailState railState = new RailState(lineId, railId, railEntry.getValue());
                     railMap.put(railId, railState);
                 }
             }
