@@ -37,7 +37,7 @@ public class GuiRailRegisterTool extends GuiScreen {
             this.selectedLine = lines.get(0);
         }
 
-        this.lineButton = new GuiButton(0, cx - 100, cy - 30, 200, 20, lineLabel());
+        this.lineButton = new GuiButton(0, cx - 100, cy - 50, 200, 20, lineLabel());
         this.buttonList.add(this.lineButton);
 
         this.patternField = new GuiTextField(1, this.fontRenderer, cx - 100, cy, 200, 20);
@@ -91,7 +91,7 @@ public class GuiRailRegisterTool extends GuiScreen {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
-        this.drawCenteredString(this.fontRenderer, "名称パターン (<>で自動採番)", this.width / 2, this.height / 2 - 14, 0xFFFFFF);
+        this.drawCenteredString(this.fontRenderer, "登録名称", this.width / 2, this.height / 2 - 14, 0xFFFFFF);
         this.patternField.drawTextBox();
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
