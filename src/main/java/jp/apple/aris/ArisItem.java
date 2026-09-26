@@ -1,11 +1,10 @@
 package jp.apple.aris;
 
 import jp.apple.aris.ctc.tool.ItemRailRegisterTool;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.ItemModelMesher;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item;
 import net.minecraftforge.client.event.ModelRegistryEvent;
+import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -25,9 +24,7 @@ public class ArisItem {
     @SideOnly(Side.CLIENT)
     @SubscribeEvent
     public static void onRegisterModels(ModelRegistryEvent event) {
-        ItemModelMesher mesher =
-                Minecraft.getMinecraft().getRenderItem().getItemModelMesher();
-        mesher.register(RAIL_REGISTER_TOOL, 0,
+        ModelLoader.setCustomModelResourceLocation(RAIL_REGISTER_TOOL, 0,
                 new ModelResourceLocation(RAIL_REGISTER_TOOL.getRegistryName(), "inventory"));
     }
 }
