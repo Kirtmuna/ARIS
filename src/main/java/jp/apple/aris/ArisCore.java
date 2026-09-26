@@ -1,5 +1,7 @@
 package jp.apple.aris;
 
+import jp.apple.aris.ctc.config.LineManager;
+import jp.apple.aris.ctc.state.LineStateManager;
 import jp.apple.aris.util.ArisDir;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
@@ -28,5 +30,7 @@ public class ArisCore {
     
     @Mod.EventHandler
     public void serverStarting(net.minecraftforge.fml.common.event.FMLServerStartingEvent event) {
+        LineManager.loadAllLines();
+        LineStateManager.initializeStates();
     }
 }
