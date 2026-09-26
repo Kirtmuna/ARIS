@@ -1,5 +1,6 @@
 package jp.apple.aris;
 
+import jp.apple.aris.ctc.command.CommandCtc;
 import jp.apple.aris.ctc.config.LineManager;
 import jp.apple.aris.ctc.state.LineStateManager;
 import jp.apple.aris.util.ArisDir;
@@ -23,6 +24,8 @@ public class ArisCore {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         LOGGER.info("Loaded: {}",Tags.MOD_NAME);
+
+        Object touch = ArisItem.RAIL_REGISTER_TOOL;
         
         File currentModFile = event.getSourceFile();
         File modsDirectory = currentModFile.getParentFile();
@@ -33,5 +36,6 @@ public class ArisCore {
     public void serverStarting(FMLServerStartingEvent event) {
         LineManager.loadAllLines();
         LineStateManager.initializeStates();
+        event.registerServerCommand(new CommandCtc());
     }
 }
