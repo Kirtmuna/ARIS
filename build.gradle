@@ -118,6 +118,10 @@ repositories {
         name 'CleanroomMC Maven'
         url 'https://maven.cleanroommc.com'
     }
+    maven {
+        name 'KirtmunaMaven'
+        url 'https://kirtmuna.github.io/kirtmuna-maven/'
+    }
 }
 
 dependencies {
@@ -156,6 +160,7 @@ dependencies {
         testImplementation 'org.junit.jupiter:junit-jupiter:5.7.1'
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
+    implementation 'jp.apple:AppleExtended-forge1.12.2:2.5.2'
 }
 
 apply from: 'gradle/scripts/dependencies.gradle'
