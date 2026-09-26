@@ -18,6 +18,7 @@ public class GuiRailRegisterTool extends GuiScreen {
     private String selectedLine;
     private GuiTextField patternField;
     private GuiButton lineButton;
+    private GuiButton pasteButton;
 
     public GuiRailRegisterTool(ItemStack stack, EnumHand hand) {
         this.hand = hand;
@@ -40,10 +41,13 @@ public class GuiRailRegisterTool extends GuiScreen {
         this.lineButton = new GuiButton(0, cx - 100, cy - 50, 200, 20, lineLabel());
         this.buttonList.add(this.lineButton);
 
-        this.patternField = new GuiTextField(1, this.fontRenderer, cx - 100, cy, 200, 20);
+        this.patternField = new GuiTextField(1, this.fontRenderer, cx - 100, cy, 176, 20);
         this.patternField.setMaxStringLength(64);
         this.patternField.setText(this.initialPattern);
         this.patternField.setFocused(true);
+
+        this.pasteButton = new GuiButton(3, cx + 78, cy, 22, 20, "V");
+        this.buttonList.add(this.pasteButton);
 
         this.buttonList.add(new GuiButton(2, cx - 50, cy + 30, 100, 20, "保存して閉じる"));
     }
@@ -65,6 +69,16 @@ public class GuiRailRegisterTool extends GuiScreen {
             this.lineButton.displayString = lineLabel();
         } else if (button.id == 2) {
             this.save();
+        } else if (button.id == 3) {
+            this.pasteFromClipboard();
+        }
+    }
+
+    private void pasteFromClipboard() {
+        String clipboard = getClipboardString();
+        if (clipboard != null && !clipboard.isEmpty()) {
+            String firstLine = clipboard.split("\\r?\\n", 2)[0];
+            this.patternField.setText(firstLine);
         }
     }
 
