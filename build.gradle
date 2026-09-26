@@ -402,3 +402,13 @@ if (propertyBool('publish_to_curseforge')) {
 
 apply from: 'gradle/scripts/publishing.gradle'
 apply from: 'gradle/scripts/extra.gradle'
+
+task copyJarToTest(type: Copy) {
+    def targetDir = file("/Users/S/Library/Application Support/PrismLauncher/instances/テスト/minecraft/mods")
+    onlyIf { targetDir.exists() }
+    from(tasks.named('reobfJar'))
+    into targetDir
+    include "*.jar"
+}
+
+build.dependsOn copyJarToTest
