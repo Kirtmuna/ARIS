@@ -22,6 +22,13 @@ public class SectionState {
         this.startSignal = start;
         this.endSignal = end;
     }
+    /**
+     * この区間の状態を更新する
+     * @param status Intで状態を表す（0=空, 1=在線）
+     */
+    public void setStatus(int status) {
+        this.sectionStatus = status;
+    }
     // ゲッター
     public String getSectionId() { return sectionId; }
     public LineConfig.SectionConfig getConfig() { return config; }

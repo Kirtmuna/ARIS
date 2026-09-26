@@ -2,6 +2,7 @@ package jp.apple.aris.ctc.state;
 
 import jp.apple.aris.common.util.PositionUtil;
 import jp.apple.aris.ctc.config.LineConfig;
+import jp.apple.aris.ctc.enums.SignalType;
 import jp.ngt.rtm.electric.TileEntitySignal;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
@@ -14,18 +15,26 @@ public class SignalState {
     private final BlockPos[] signalPositions;
     // 現在の信号レベルの状態
     private int currentSignalLevel = 0;
+    // 共通現示インデックス (0=停止, 1=警戒, 2=注意, 3=減速, 4=進行, 5=高速進行)
+    private int currentAspect = 4; // 最初は進行で初期化
+    // 灯数
+    private final SignalType signalType;
     
     public SignalState(String id, LineConfig.SignalConfig config) {
         this.signalId = id;
         this.config = config;
         this.signalPositions = PositionUtil.toBlockPosArray(config.positions);
+        this.signalType = SignalType.fromKey(config.type);
     }
     /**
      * 現示の設定、RTM信号の同期
      * @param world 信号機が存在するワールドのインスタンス
-     * @param level 設定したい信号レベル
+     * @param aspectIndex 設定したい共通現示インデックス (0=停止〜5=高速進行)
      */
-    public void setSignal(World world, int level) {
+    public void setSignal(World world, int aspectIndex) {
+        this.currentAspect = aspectIndex;
+        int level = this.signalType.getLevel(aspectIndex);
+        
         this.currentSignalLevel = level;
         
         if (world == null || world.isRemote) {
@@ -49,4 +58,6 @@ public class SignalState {
     public LineConfig.SignalConfig getConfig() { return config; }
     public BlockPos[] getSignalPositions() { return signalPositions; }
     public int getCurrentLevel() { return currentSignalLevel; }
+    public SignalType getSignalType() { return signalType; }
+    public int getCurrentAspect() { return currentAspect; }
 }
