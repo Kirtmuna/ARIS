@@ -1,5 +1,6 @@
 package jp.apple.aris.ctc.tool;
 
+import jp.apple.aris.common.util.PositionUtil;
 import jp.apple.aris.ctc.config.LineConfig;
 import jp.apple.aris.ctc.config.LineManager;
 import jp.apple.aris.ctc.network.ServerLineSyncHandler;
@@ -66,6 +67,21 @@ public class RailRegisterLogic {
         String candidateName = resolveName(config.rails, pattern, existingId);
 
         if (existingId == null) {
+            for (Map.Entry<String, LineConfig.RailConfig> entry : config.rails.entrySet()) {
+                BlockPos otherPos = PositionUtil.toBlockPos(entry.getValue().position);
+                if (!world.isBlockLoaded(otherPos)) continue;
+
+                TileEntity otherTe = world.getTileEntity(otherPos);
+                if (!(otherTe instanceof TileEntityLargeRailCore)) continue;
+
+                TileEntityLargeRailCore otherCore = (TileEntityLargeRailCore) otherTe;
+                if (core.isSameLogicalRail(otherCore)) {
+                    sendMsg(player, TextFormatting.RED,
+                            "このレールは既に登録済みの '" + entry.getKey() + "' と同じセクショングループです"
+                                    + "別名では登録できません");
+                    return true;
+                }
+            }
             LineConfig.RailConfig rc = new LineConfig.RailConfig();
             rc.position = new int[]{corePos.getX(), corePos.getY(), corePos.getZ()};
             config.rails.put(candidateName, rc);
