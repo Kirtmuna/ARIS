@@ -70,6 +70,7 @@ public class SectionRegisterLogic {
         }
 
         SESSIONS.put(player.getUniqueID(), new SectionRegisterSession(lineId, pattern, signalId));
+        syncSession(player, SESSIONS.get(player.getUniqueID()));
         sendMsg(player, TextFormatting.GREEN, "区間登録開始 (開始信号: " + signalId + ")");
         return true;
     }
@@ -97,9 +98,11 @@ public class SectionRegisterLogic {
 
         if (session.railIds.contains(railId)) {
             session.railIds.remove(railId);
+            syncSession(player, session);
             sendMsg(player, TextFormatting.YELLOW, "区間から除外: " + railId + " (現在 " + session.railIds.size() + "本)");
         } else {
             session.railIds.add(railId);
+            syncSession(player, session);
             sendMsg(player, TextFormatting.AQUA, "区間に追加: " + railId + " (現在 " + session.railIds.size() + "本)");
         }
         return true;
@@ -110,6 +113,7 @@ public class SectionRegisterLogic {
         if (config == null) {
             sendMsg(player, TextFormatting.RED, "路線が見つかりません");
             SESSIONS.remove(player.getUniqueID());
+            syncSession(player, null);
             return true;
         }
 
@@ -148,6 +152,7 @@ public class SectionRegisterLogic {
     /** 左クリックでのキャンセル。セッションがあれば破棄してtrueを返す */
     public static boolean cancelSession(EntityPlayer player) {
         if (SESSIONS.remove(player.getUniqueID()) != null) {
+            syncSession(player, null);
             sendMsg(player, TextFormatting.YELLOW, "区間登録をキャンセルしました");
             return true;
         }
@@ -167,5 +172,13 @@ public class SectionRegisterLogic {
 
     private static void sendMsg(EntityPlayer player, TextFormatting color, String msg) {
         player.sendMessage(new TextComponentString(color + "ARIS: " + msg));
+    }
+
+    private static void syncSession(EntityPlayer player, SectionRegisterSession session) {
+        String lineId = session != null ? session.lineId : "";
+        java.util.List<String> ids = session != null ? session.railIds : java.util.Collections.emptyList();
+        jp.apple.aris.ArisNetwork.CHANNEL.sendTo(
+                new PacketSyncSectionSession(lineId, ids),
+                (net.minecraft.entity.player.EntityPlayerMP) player);
     }
 }

@@ -1,18 +1,23 @@
 package jp.apple.aris.ctc.client;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+
+import jp.apple.aris.ctc.config.LineConfig;
 
 public class ClientLineCache {
-    private static List<String> lineIds = new ArrayList<>();
+    private static Map<String, LineConfig> LINES = new HashMap<>();
 
-    public static void setLineIds(List<String> ids) {
-        lineIds = new ArrayList<>(ids);
-        Collections.sort(lineIds);
+    public static void setLines(Map<String, LineConfig> lines) {
+        LINES = new HashMap<>(lines);
     }
 
     public static List<String> getLineIds() {
-        return lineIds;
+        List<String> ids = new ArrayList<>(LINES.keySet());
+        Collections.sort(ids);
+        return ids;
+    }
+
+    public static LineConfig getConfig(String lineId) {
+        return LINES.get(lineId);
     }
 }

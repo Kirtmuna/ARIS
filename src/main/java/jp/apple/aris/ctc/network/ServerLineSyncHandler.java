@@ -22,16 +22,14 @@ public class ServerLineSyncHandler {
     }
 
     private static void sendLineListTo(EntityPlayerMP player) {
-        List<String> ids = new ArrayList<>(LineManager.getAllLines().keySet());
-        ArisNetwork.CHANNEL.sendTo(new PacketSyncLineList(ids), player);
+        ArisNetwork.CHANNEL.sendTo(new PacketSyncLineList(LineManager.getAllLines()), player);
     }
     /**
      * 現在ログイン中の全プレイヤーに、最新の路線ID一覧を再送する
      */
     public static void broadcastLineList(MinecraftServer server) {
         if (server == null) return;
-        List<String> ids = new ArrayList<>(LineManager.getAllLines().keySet());
-        PacketSyncLineList packet = new PacketSyncLineList(ids);
+        PacketSyncLineList packet = new PacketSyncLineList(LineManager.getAllLines());
         for (EntityPlayerMP player : server.getPlayerList().getPlayers()) {
             ArisNetwork.CHANNEL.sendTo(packet, player);
         }
