@@ -67,6 +67,11 @@ public class BlockSystem {
                     while (targetAspect < 5 && startSig.getSignalType().getLevel(targetAspect) == startSig.getSignalType().getLevel(0)) {
                         targetAspect++;
                     }
+                    if (startSig.getSignalType().getLevel(targetAspect) == startSig.getSignalType().getLevel(0)) {
+                        while (targetAspect > 0 && startSig.getSignalType().getLevel(targetAspect) == startSig.getSignalType().getLevel(0)) {
+                            targetAspect--;
+                        }
+                    }
                 }
                 startSig.setSignal(world, targetAspect);
             }
