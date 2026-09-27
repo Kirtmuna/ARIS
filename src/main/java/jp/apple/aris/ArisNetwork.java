@@ -1,6 +1,7 @@
 package jp.apple.aris;
 
 import jp.apple.aris.ctc.network.PacketSyncLineList;
+import jp.apple.aris.ctc.tool.PacketCancelSection;
 import jp.apple.aris.ctc.tool.PacketRailToolConfig;
 import jp.apple.aris.ctc.tool.PacketSyncSectionSession;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
@@ -13,6 +14,8 @@ public class ArisNetwork {
     public static void init() {
         CHANNEL = NetworkRegistry.INSTANCE.newSimpleChannel(ArisCore.ID);
         CHANNEL.registerMessage(PacketRailToolConfig.Handler.class, PacketRailToolConfig.class, 0, Side.SERVER);
+        CHANNEL.registerMessage(PacketCancelSection.Handler.class, PacketCancelSection.class, 3, Side.SERVER);
+        
         CHANNEL.registerMessage(PacketSyncLineList.Handler.class, PacketSyncLineList.class, 1, Side.CLIENT);
         CHANNEL.registerMessage(PacketSyncSectionSession.Handler.class, PacketSyncSectionSession.class, 2, Side.CLIENT);
     }
