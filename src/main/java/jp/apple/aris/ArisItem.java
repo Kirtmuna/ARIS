@@ -1,6 +1,7 @@
 package jp.apple.aris;
 
 import jp.apple.aris.ctc.tool.ItemRailRegisterTool;
+import jp.apple.aris.ctc.tool.ItemSectionRegisterTool;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item;
 import net.minecraftforge.client.event.ModelRegistryEvent;
@@ -15,10 +16,12 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 public class ArisItem {
 
     public static final ItemRailRegisterTool RAIL_REGISTER_TOOL = new ItemRailRegisterTool();
+    public static final ItemSectionRegisterTool SECTION_REGISTER_TOOL = new ItemSectionRegisterTool();
 
     @SubscribeEvent
     public static void onRegisterItems(RegistryEvent.Register<Item> event) {
         event.getRegistry().register(RAIL_REGISTER_TOOL);
+        event.getRegistry().register(SECTION_REGISTER_TOOL);
     }
 
     @SideOnly(Side.CLIENT)
@@ -26,5 +29,7 @@ public class ArisItem {
     public static void onRegisterModels(ModelRegistryEvent event) {
         ModelLoader.setCustomModelResourceLocation(RAIL_REGISTER_TOOL, 0,
                 new ModelResourceLocation(RAIL_REGISTER_TOOL.getRegistryName(), "inventory"));
+        ModelLoader.setCustomModelResourceLocation(SECTION_REGISTER_TOOL, 0,
+                new ModelResourceLocation(SECTION_REGISTER_TOOL.getRegistryName(), "inventory"));
     }
 }
