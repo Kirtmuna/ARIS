@@ -53,35 +53,11 @@ public class RailRegisterLogic {
         if (config.rails == null) {
             config.rails = new HashMap<>();
         }
-        
-        String existingId = null;
-        for (Map.Entry<String, LineConfig.RailConfig> entry : config.rails.entrySet()) {
-            int[] p = entry.getValue().position;
-            if (p != null && p.length >= 3
-                    && p[0] == corePos.getX() && p[1] == corePos.getY() && p[2] == corePos.getZ()) {
-                existingId = entry.getKey();
-                break;
-            }
-        }
+        String existingId = findExistingRailId(world, config, core, corePos);
 
         String candidateName = resolveName(config.rails, pattern, existingId);
 
         if (existingId == null) {
-            for (Map.Entry<String, LineConfig.RailConfig> entry : config.rails.entrySet()) {
-                BlockPos otherPos = PositionUtil.toBlockPos(entry.getValue().position);
-                if (!world.isBlockLoaded(otherPos)) continue;
-
-                TileEntity otherTe = world.getTileEntity(otherPos);
-                if (!(otherTe instanceof TileEntityLargeRailCore)) continue;
-
-                TileEntityLargeRailCore otherCore = (TileEntityLargeRailCore) otherTe;
-                if (core.isSameLogicalRail(otherCore)) {
-                    sendMsg(player, TextFormatting.RED,
-                            "このレールは既に登録済みの '" + entry.getKey() + "' と同じセクショングループです"
-                                    + "別名では登録できません");
-                    return true;
-                }
-            }
             LineConfig.RailConfig rc = new LineConfig.RailConfig();
             rc.position = new int[]{corePos.getX(), corePos.getY(), corePos.getZ()};
             config.rails.put(candidateName, rc);
@@ -99,6 +75,34 @@ public class RailRegisterLogic {
         LineStateManager.initializeStates();
         ServerLineSyncHandler.broadcastLineList(world.getMinecraftServer());
         return true;
+    }
+    /**
+     * configに登録済みの各レールを見て、clickedCoreと同一の論理レール(セクショングループ含む)を指すものを探す。
+     * 見つかった場合はそのID、無ければnullを返す。
+     * チャンク未読込などでTEが取得できない場合は、座標の完全一致にフォールバックする。
+     */
+    private static String findExistingRailId(World world, LineConfig config, TileEntityLargeRailCore clickedCore, BlockPos clickedCorePos) {
+        for (Map.Entry<String, LineConfig.RailConfig> entry : config.rails.entrySet()) {
+            int[] p = entry.getValue().position;
+            if (p == null || p.length < 3) continue;
+            BlockPos otherPos = PositionUtil.toBlockPos(p);
+
+            // 座標が完全一致するなら、それだけで確定（チャンク未読込でも判定できる）
+            if (otherPos.equals(clickedCorePos)) {
+                return entry.getKey();
+            }
+
+            // 座標が違っても、同じセクショングループ(railGroupId)なら同一レールとして扱う
+            if (!world.isBlockLoaded(otherPos)) continue;
+            TileEntity otherTe = world.getTileEntity(otherPos);
+            if (!(otherTe instanceof TileEntityLargeRailCore)) continue;
+
+            TileEntityLargeRailCore otherCore = (TileEntityLargeRailCore) otherTe;
+            if (clickedCore.isSameLogicalRail(otherCore)) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
     /**
      * <> を含むパターンから、excludeId自身は"使用中"から除外して空き番号を探す。
