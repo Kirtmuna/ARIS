@@ -90,7 +90,7 @@ public class SectionRegisterLogic {
             return true;
         }
 
-        String railId = LineLookup.findRailId(config, core.getPos());
+        String railId = LineLookup.findRailId(config, core);
         if (railId == null) {
             sendMsg(player, TextFormatting.RED, "このレールは路線に登録されていません。先にレール登録ツールで登録してください");
             return true;
