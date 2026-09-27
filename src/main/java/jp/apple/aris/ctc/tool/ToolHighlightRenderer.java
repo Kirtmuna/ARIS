@@ -62,47 +62,7 @@ public class ToolHighlightRenderer {
         String lineId = nbt != null ? nbt.getString("TargetLine") : "";
         LineConfig config = ClientLineCache.getConfig(lineId);
 
-        RayTraceResult trace = mc.objectMouseOver;
-        if (trace == null || trace.typeOfHit != RayTraceResult.Type.BLOCK) return;
-        BlockPos pos = trace.getBlockPos();
-        TileEntity te = mc.world.getTileEntity(pos);
-
         prepareRender();
-
-        if (te instanceof TileEntitySignal) {
-            if (isSectionTool && config != null) {
-                String signalId = findSignalId(config, pos);
-                hudLines.add(signalId != null
-                        ? "信号ID: " + signalId
-                        : "信号ID: 未登録");
-            }
-        } else if (te instanceof TileEntityLargeRailBase) {
-            TileEntityLargeRailCore core = ((TileEntityLargeRailBase) te).getRailCore();
-            if (core != null && config != null) {
-                List<int[]> groupPositions = core.getRailGroupCorePositions();
-                String railId = findRegisteredRailId(config, groupPositions);
-
-                boolean isSelected = isSectionTool
-                        && railId != null
-                        && lineId.equals(ClientSectionSessionCache.getLineId())
-                        && ClientSectionSessionCache.getSelectedRailIds().contains(railId);
-
-                float[] color = isSelected ? BLUE : (railId != null ? GREEN : RED);
-                drawGroupHighlight(mc, event.getPartialTicks(), groupPositions, color);
-
-                if (railId != null) {
-                    hudLines.add("レールID: " + railId);
-                    if (isSectionTool) {
-                        List<String> sections = findSectionsContaining(config, railId);
-                        if (!sections.isEmpty()) {
-                            hudLines.add("所属区間: " + String.join(", ", sections));
-                        }
-                    }
-                } else {
-                    hudLines.add("レールID: 未登録");
-                }
-            }
-        }
         
         if (isSectionTool && config != null && lineId.equals(ClientSectionSessionCache.getLineId())) {
             for (String selId : ClientSectionSessionCache.getSelectedRailIds()) {
@@ -114,6 +74,44 @@ public class ToolHighlightRenderer {
                 if (!(selTe instanceof TileEntityLargeRailCore)) continue;
                 List<int[]> selGroup = ((TileEntityLargeRailCore) selTe).getRailGroupCorePositions();
                 drawGroupHighlight(mc, event.getPartialTicks(), selGroup, BLUE);
+            }
+        }
+        RayTraceResult trace = mc.objectMouseOver;
+        if (trace != null && trace.typeOfHit == RayTraceResult.Type.BLOCK) {
+            BlockPos pos = trace.getBlockPos();
+            TileEntity te = mc.world.getTileEntity(pos);
+            
+            if (te instanceof TileEntitySignal) {
+                if (isSectionTool && config != null) {
+                    String signalId = findSignalId(config, pos);
+                    hudLines.add(signalId != null ? "信号ID: " + signalId : "信号ID: 未登録");
+                }
+            } else if (te instanceof TileEntityLargeRailBase) {
+                TileEntityLargeRailCore core = ((TileEntityLargeRailBase) te).getRailCore();
+                if (core != null && config != null) {
+                    List<int[]> groupPositions = core.getRailGroupCorePositions();
+                    String railId = findRegisteredRailId(config, groupPositions);
+
+                    boolean isSelected = isSectionTool
+                            && railId != null
+                            && lineId.equals(ClientSectionSessionCache.getLineId())
+                            && ClientSectionSessionCache.getSelectedRailIds().contains(railId);
+                    
+                    float[] color = isSelected ? BLUE : (railId != null ? GREEN : RED);
+                    drawGroupHighlight(mc, event.getPartialTicks(), groupPositions, color);
+
+                    if (railId != null) {
+                        hudLines.add("レールID: " + railId);
+                        if (isSectionTool) {
+                            List<String> sections = findSectionsContaining(config, railId);
+                            if (!sections.isEmpty()) {
+                                hudLines.add("所属区間: " + String.join(", ", sections));
+                            }
+                        }
+                    } else {
+                        hudLines.add("レールID: 未登録");
+                    }
+                }
             }
         }
 
