@@ -10,6 +10,7 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.Entity;
+import net.minecraft.item.Item;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
@@ -33,7 +34,10 @@ public class RailGroupHighlightRenderer {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.world == null || mc.player == null) return;
 
-        if (!(mc.player.getHeldItemMainhand().getItem() instanceof ItemRailRegisterTool)) return;
+        Item heldItem = mc.player.getHeldItemMainhand().getItem();
+        if (!(heldItem instanceof ItemRailRegisterTool) && !(heldItem instanceof ItemSectionRegisterTool)) {
+            return;
+        }
 
         RayTraceResult trace = mc.objectMouseOver;
         if (trace == null || trace.typeOfHit != RayTraceResult.Type.BLOCK) return;
