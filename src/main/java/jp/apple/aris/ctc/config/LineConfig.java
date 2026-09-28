@@ -27,6 +27,8 @@ public class LineConfig {
     }
     // ポイント-config
     public static class SwitchConfig {
-        public int[] position;        // 座標 [x,y,z]
+        public String rail;     // 分岐器のRailId
+        public String nSignal;  // NORMAL時に対応する信号ID
+        public String rSignal;  // REVERSE時に対応する信号ID
     }
 }
