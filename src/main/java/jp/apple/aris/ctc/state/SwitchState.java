@@ -64,6 +64,14 @@ public class SwitchState {
             default: return null;
         }
     }
+    /** 現在の向きと逆側の信号 */
+    public SignalState getClosedSignal() {
+        switch (currentPosition) {
+            case NORMAL: return reverseSignal;
+            case REVERSE: return normalSignal;
+            default: return null;
+        }
+    }
 
     public String getSwitchId() { return switchId; }
     public RailState getRail() { return rail; }

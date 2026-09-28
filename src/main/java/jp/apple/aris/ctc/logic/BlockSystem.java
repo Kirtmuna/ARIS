@@ -1,5 +1,6 @@
 package jp.apple.aris.ctc.logic;
 
+import jp.apple.aris.ctc.enums.SwitchPosition;
 import jp.apple.aris.ctc.state.*;
 import net.minecraft.world.World;
 import java.util.Map;
@@ -64,6 +65,17 @@ public class BlockSystem {
                     }
                 }
                 startSig.setSignal(world, targetAspect);
+            }
+            // 2.5 ポイントの鎖錠: 開通していない側の信号を停止にする
+            if (switches != null) {
+                for (SwitchState sw : switches.values()) {
+                    SignalState closed = sw.getClosedSignal();
+                    if (closed != null) closed.setSignal(world, 0);
+                    if (sw.getCurrentPosition() == SwitchPosition.UNKNOWN) {
+                        if (sw.getNormalSignal() != null) sw.getNormalSignal().setSignal(world, 0);
+                        if (sw.getReverseSignal() != null) sw.getReverseSignal().setSignal(world, 0);
+                    }
+                }
             }
             // 3. 無灯信号を停止現示にする
             for (SignalState sig : LineStateManager.getSignals(lineEntry.getKey()).values()) {
