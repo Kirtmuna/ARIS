@@ -50,8 +50,8 @@ public class BlockSystem {
                 // 自区間に車両がいないなら、次の信号(endSignal)を読んで1つ緩い現示にする
                 else {
                     if (endSig != null) {
-                        int nextAspect = endSig.getCurrentAspect();
                         // 原則：endSigが N の場合startSigは N + 1 
+                        int nextAspect = endSig.isControlled() ? endSig.getCurrentAspect() : 0;
                         if (nextAspect == 0) {
                             idealAspect = 1;
                         } else {
@@ -74,6 +74,12 @@ public class BlockSystem {
                     }
                 }
                 startSig.setSignal(world, targetAspect);
+            }
+            // 3. 無灯信号を停止現示にする
+            for (SignalState sig : LineStateManager.getSignals(lineEntry.getKey()).values()) {
+                if (!sig.isControlled()) {
+                    sig.setSignal(world, 0);
+                }
             }
         }
     }

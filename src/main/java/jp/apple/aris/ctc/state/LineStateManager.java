@@ -6,8 +6,10 @@ import jp.apple.aris.ctc.config.LineManager;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class LineStateManager {
     private static final Map<String, Map<String, RailState>> LINE_RAILS = new HashMap<>();
@@ -31,6 +33,7 @@ public class LineStateManager {
             Map<String, RailState> railMap = new HashMap<>();
             Map<String, SignalState> signalMap = new HashMap<>();
             Map<String, SectionState> sectionMap = new HashMap<>();
+            Set<String> usedAsStart = new HashSet<>();
             
             // 1. レールのインスタンス化
             if (config.rails != null) {
@@ -72,8 +75,19 @@ public class LineStateManager {
                     
                     SectionState sectionState = new SectionState(secId, secConfig, targetRails, startSig, endSig);
                     sectionMap.put(secId, sectionState);
+
+                    if (secConfig.startSignal != null) {
+                        usedAsStart.add(secConfig.startSignal);
+                    }
                 }
             }
+            for (Map.Entry<String, SignalState> sigEntry : signalMap.entrySet()) {
+                if (!usedAsStart.contains(sigEntry.getKey())) {
+                    sigEntry.getValue().setControlled(false);
+                    ArisCore.LOGGER.info("ARIS: 信号 '{}' はどの区間からも制御されません(無灯として停止現示に固定)", sigEntry.getKey());
+                }
+            }
+
             LINE_RAILS.put(lineId, railMap);
             LINE_SIGNALS.put(lineId, signalMap);
             LINE_SECTIONS.put(lineId, sectionMap);

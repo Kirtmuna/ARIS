@@ -19,6 +19,8 @@ public class SignalState {
     private int currentAspect = 4; // 最初は進行で初期化
     // 灯数
     private final SignalType signalType;
+    // 区間に扱われているかどうかのフラグ
+    private boolean isControlled = true;
     
     public SignalState(String id, LineConfig.SignalConfig config) {
         this.signalId = id;
@@ -52,6 +54,13 @@ public class SignalState {
                 rtmSignal.setElectricity(pos.getX(), pos.getY(), pos.getZ(), level);
             }
         }
+    }
+    public void setControlled(boolean controlled) {
+        this.isControlled = controlled;
+    }
+
+    public boolean isControlled() {
+        return this.isControlled;
     }
     // ゲッター
     public String getSignalId() { return signalId; }
