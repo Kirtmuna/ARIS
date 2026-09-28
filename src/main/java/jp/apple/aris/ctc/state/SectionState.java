@@ -11,23 +11,30 @@ public class SectionState {
     private final List<RailState> sectionRails = new ArrayList<>();
     private final SignalState startSignal;
     private final SignalState endSignal;
+    private final SwitchState endSwitch;
     
     private int sectionStatus = 0;
 
     /**
      * コンストラクタ
      */
-    public SectionState(String id, LineConfig.SectionConfig config, List<RailState> rails, SignalState start, SignalState end) {
+    public SectionState(String id, LineConfig.SectionConfig config, List<RailState> rails,
+                        SignalState start, SignalState endSig, SwitchState endSw) {
         this.sectionId = id;
         this.config = config;
-        
-        if (rails != null) {
-            this.sectionRails.addAll(rails);
-        }
-
+        if (rails != null) this.sectionRails.addAll(rails);
         this.startSignal = start;
-        this.endSignal = end;
+        this.endSignal = endSig;
+        this.endSwitch = endSw;
     }
+    /** 次の信号を現在の状態から解決する、できなければnull */
+    public SignalState resolveNextSignal() {
+        if (endSignal != null) return endSignal;
+        if (endSwitch != null) return endSwitch.getActiveSignal();
+        return null;
+    }
+    /** 終端が何らかの形で設定されているか */
+    public boolean hasEndpoint() { return endSignal != null || endSwitch != null; }
     /**
      * この区間に所属しているすべてのレールのうち、1つでも列車が乗っているかチェックする
      * BlockSystem側から呼び出す

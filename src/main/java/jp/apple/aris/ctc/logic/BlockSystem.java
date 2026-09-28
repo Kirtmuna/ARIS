@@ -1,9 +1,6 @@
 package jp.apple.aris.ctc.logic;
 
-import jp.apple.aris.ctc.state.LineStateManager;
-import jp.apple.aris.ctc.state.RailState;
-import jp.apple.aris.ctc.state.SectionState;
-import jp.apple.aris.ctc.state.SignalState;
+import jp.apple.aris.ctc.state.*;
 import net.minecraft.world.World;
 import java.util.Map;
 
@@ -18,6 +15,12 @@ public class BlockSystem {
             Map<String, SectionState> sectionMap = lineEntry.getValue();
             if (sectionMap == null) continue;
 
+            // 0. ポイントの向きを最新にする
+            Map<String, SwitchState> switches = LineStateManager.getSwitches(lineEntry.getKey());
+            if (switches != null) {
+                for (SwitchState sw : switches.values()) sw.updateFromWorld(world);
+            }
+
             // 1. 全線レールの状態を最新にし、区間の基本ステータスを確定させる
             for (SectionState section : sectionMap.values()) {
                 if (section == null) continue;
@@ -28,39 +31,26 @@ public class BlockSystem {
                     }
                 }
                 
-                if (section.checkAnyRailOccupied()) {
-                    section.setStatus(1); // 在線
-                } else {
-                    section.setStatus(0); // 空き
-                }
+                section.setStatus(section.checkAnyRailOccupied() ? 1 : 0);
             }
 
             // 2. 現示の出力
             for (SectionState section : sectionMap.values()) {
                 if (section == null || section.getStartSignal() == null) continue;
-                // 開始信号と終了信号を取得
                 SignalState startSig = section.getStartSignal();
-                SignalState endSig = section.getEndSignal();
-                // 共通現示インデックス
-                int idealAspect = 5;
-                // 自区間に車両がいるなら停止現示
+
+                int idealAspect;
                 if (section.getStatus() == 1) {
+                    // 自区間に車両がいるなら停止現示
                     idealAspect = 0;
-                }
-                // 自区間に車両がいないなら、次の信号(endSignal)を読んで1つ緩い現示にする
-                else {
-                    if (endSig != null) {
-                        // 原則：endSigが N の場合startSigは N + 1 
-                        int nextAspect = endSig.isControlled() ? endSig.getCurrentAspect() : 0;
-                        if (nextAspect == 0) {
-                            idealAspect = 1;
-                        } else {
-                            idealAspect = nextAspect + 1;
-                        }
-                        if (idealAspect > 5) idealAspect = 5;
-                    } else {
-                        idealAspect = 1;
-                    }
+                } else if (section.hasEndpoint()) {
+                    // 終端が信号ならその信号、ポイントなら現在の向きに対応する信号を見る
+                    SignalState next = section.resolveNextSignal();
+                    // 無灯は停止扱い
+                    int nextAspect = (next != null && next.isControlled()) ? next.getCurrentAspect() : 0;
+                    idealAspect = (nextAspect == 0) ? 1 : Math.min(nextAspect + 1, 5);
+                } else {
+                    idealAspect = 1;
                 }
                 int targetAspect = idealAspect;
                 if (section.getStatus() == 0 && targetAspect > 0) {
