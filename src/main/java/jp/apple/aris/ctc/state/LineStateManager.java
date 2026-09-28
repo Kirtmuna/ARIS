@@ -15,6 +15,7 @@ public class LineStateManager {
     private static final Map<String, Map<String, RailState>> LINE_RAILS = new HashMap<>();
     private static final Map<String, Map<String, SignalState>> LINE_SIGNALS = new HashMap<>();
     private static final Map<String, Map<String, SectionState>> LINE_SECTIONS = new HashMap<>();
+    private static final Map<String, Map<String, SwitchState>> LINE_SWITCHES = new HashMap<>();
 
     /**
      * LineConfigを元にすべてのStateインスタンスを生成する
@@ -23,6 +24,7 @@ public class LineStateManager {
         LINE_RAILS.clear();
         LINE_SIGNALS.clear();
         LINE_SECTIONS.clear();
+        LINE_SWITCHES.clear();
         // LineManagerに保管されているすべての路線をループ処理
         for (Map.Entry<String, LineConfig> entry : LineManager.getAllLines().entrySet()) {
             String lineId = entry.getKey();
@@ -33,6 +35,7 @@ public class LineStateManager {
             Map<String, RailState> railMap = new HashMap<>();
             Map<String, SignalState> signalMap = new HashMap<>();
             Map<String, SectionState> sectionMap = new HashMap<>();
+            Map<String, SwitchState> switchMap = new HashMap<>();
             Set<String> usedAsStart = new HashSet<>();
             
             // 1. レールのインスタンス化
@@ -51,6 +54,16 @@ public class LineStateManager {
                     
                     SignalState signalState = new SignalState(sigId, sigEntry.getValue());
                     signalMap.put(sigId, signalState);
+                }
+            }
+            // 3. ポイント(区間より先に作る)
+            if (config.switches != null) {
+                for (Map.Entry<String, LineConfig.SwitchConfig> e : config.switches.entrySet()) {
+                    LineConfig.SwitchConfig sc = e.getValue();
+                    RailState r = railMap.get(sc.rail);
+                    if (r == null) ArisCore.LOGGER.warn("ARIS: ポイント '{}' の rail '{}' が見つかりません", e.getKey(), sc.rail);
+                    switchMap.put(e.getKey(), new SwitchState(e.getKey(), sc, r,
+                            signalMap.get(sc.nSignal), signalMap.get(sc.rSignal)));
                 }
             }
             // 3. 区間のインスタンス化
@@ -72,9 +85,16 @@ public class LineStateManager {
 
                     SignalState startSig = signalMap.get(secConfig.startSignal);
                     SignalState endSig = signalMap.get(secConfig.endSignal);
-                    
-                    SectionState sectionState = new SectionState(secId, secConfig, targetRails, startSig, endSig);
-                    sectionMap.put(secId, sectionState);
+                    SwitchState endSw = null;
+                    if (endSig == null && secConfig.endSignal != null) {
+                        endSw = switchMap.get(secConfig.endSignal);
+                        if (endSw == null) {
+                            ArisCore.LOGGER.warn("ARIS: 区間 '{}' の endSignal '{}' は信号にもポイントにも見つかりません", secId, secConfig.endSignal);
+                        }
+                    } else if (endSig != null && switchMap.containsKey(secConfig.endSignal)) {
+                        ArisCore.LOGGER.warn("ARIS: ID '{}' が信号とポイントで重複しています。信号を優先します", secConfig.endSignal);
+                    }
+                    sectionMap.put(secId, new SectionState(secId, secConfig, targetRails, startSig, endSig, endSw));
 
                     if (secConfig.startSignal != null) {
                         usedAsStart.add(secConfig.startSignal);
@@ -91,6 +111,7 @@ public class LineStateManager {
             LINE_RAILS.put(lineId, railMap);
             LINE_SIGNALS.put(lineId, signalMap);
             LINE_SECTIONS.put(lineId, sectionMap);
+            LINE_SWITCHES.put(lineId, switchMap);
 
             ArisCore.LOGGER.info("ARIS: 路線のインスタンス化が完了しました: {} (区間数: {})", lineId, sectionMap.size());
         }
@@ -101,4 +122,5 @@ public class LineStateManager {
     public static Map<String, SignalState> getSignals(String lineId) { return LINE_SIGNALS.get(lineId); }
 
     public static Map<String, Map<String, SectionState>> getAllLineSections() { return LINE_SECTIONS; }
+    public static Map<String, SwitchState> getSwitches(String lineId) { return LINE_SWITCHES.get(lineId); }
 }
