@@ -1,10 +1,10 @@
 package jp.apple.aris.ctc.tool;
 
 import jp.apple.aris.ArisCore;
-import jp.apple.aris.ctc.client.ClientLineCache;
-import jp.apple.aris.ctc.config.LineConfig;
-import jp.apple.aris.ctc.client.ClientSectionSessionCache;
 import jp.apple.aris.common.util.PositionUtil;
+import jp.apple.aris.ctc.client.ClientLineCache;
+import jp.apple.aris.ctc.client.ClientSectionSessionCache;
+import jp.apple.aris.ctc.config.LineConfig;
 import jp.ngt.rtm.electric.TileEntitySignal;
 import jp.ngt.rtm.rail.TileEntityLargeRailBase;
 import jp.ngt.rtm.rail.TileEntityLargeRailCore;
@@ -40,9 +40,9 @@ public class ToolHighlightRenderer {
 
     private static final int SAMPLES = 24;
     private static final float[] GREEN = {0.2F, 1.0F, 0.2F};
-    private static final float[] RED   = {1.0F, 0.2F, 0.2F};
-    private static final float[] BLUE  = {0.3F, 0.5F, 1.0F};
-    
+    private static final float[] RED = {1.0F, 0.2F, 0.2F};
+    private static final float[] BLUE = {0.3F, 0.5F, 1.0F};
+
     private static List<String> hudLines = new ArrayList<>();
 
     @SubscribeEvent
@@ -63,7 +63,7 @@ public class ToolHighlightRenderer {
         LineConfig config = ClientLineCache.getConfig(lineId);
 
         prepareRender();
-        
+
         if (isSectionTool && config != null && lineId.equals(ClientSectionSessionCache.getLineId())) {
             for (String selId : ClientSectionSessionCache.getSelectedRailIds()) {
                 LineConfig.RailConfig rc = config.rails != null ? config.rails.get(selId) : null;
@@ -80,7 +80,7 @@ public class ToolHighlightRenderer {
         if (trace != null && trace.typeOfHit == RayTraceResult.Type.BLOCK) {
             BlockPos pos = trace.getBlockPos();
             TileEntity te = mc.world.getTileEntity(pos);
-            
+
             if (te instanceof TileEntitySignal) {
                 if (isSectionTool && config != null) {
                     String signalId = findSignalId(config, pos);
@@ -96,7 +96,7 @@ public class ToolHighlightRenderer {
                             && railId != null
                             && lineId.equals(ClientSectionSessionCache.getLineId())
                             && ClientSectionSessionCache.getSelectedRailIds().contains(railId);
-                    
+
                     float[] color = isSelected ? BLUE : (railId != null ? GREEN : RED);
                     drawGroupHighlight(mc, event.getPartialTicks(), groupPositions, color);
 
@@ -212,7 +212,10 @@ public class ToolHighlightRenderer {
         for (Map.Entry<String, LineConfig.SectionConfig> e : config.sections.entrySet()) {
             if (e.getValue().sectionRails == null) continue;
             for (String r : e.getValue().sectionRails) {
-                if (railId.equals(r)) { result.add(e.getKey()); break; }
+                if (railId.equals(r)) {
+                    result.add(e.getKey());
+                    break;
+                }
             }
         }
         return result;

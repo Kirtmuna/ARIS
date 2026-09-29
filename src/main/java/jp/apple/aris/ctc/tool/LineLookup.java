@@ -9,7 +9,9 @@ import java.util.List;
 import java.util.Map;
 
 public class LineLookup {
-    /** CoreのBlockPosから登録済みレールIDを逆引きする */
+    /**
+     * CoreのBlockPosから登録済みレールIDを逆引きする
+     */
     public static String findRailId(LineConfig config, TileEntityLargeRailCore core) {
         if (config.rails == null || core == null) return null;
 
@@ -24,7 +26,10 @@ public class LineLookup {
         }
         return null;
     }
-    /** クリックされた座標が、登録済みのどの信号機のpositionsに含まれるか逆引きする */
+
+    /**
+     * クリックされた座標が、登録済みのどの信号機のpositionsに含まれるか逆引きする
+     */
     public static String findSignalId(LineConfig config, BlockPos pos) {
         if (config.signals == null) return null;
         for (Map.Entry<String, LineConfig.SignalConfig> e : config.signals.entrySet()) {

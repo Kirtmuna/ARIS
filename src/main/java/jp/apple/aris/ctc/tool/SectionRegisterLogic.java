@@ -27,7 +27,7 @@ public class SectionRegisterLogic {
         TileEntity te = world.getTileEntity(clickedPos);
         UUID uuid = player.getUniqueID();
         SectionRegisterSession session = SESSIONS.get(uuid);
-        
+
         if (te instanceof TileEntitySignal) {
             if (session == null) {
                 return startSession(player, world, clickedPos, stack);
@@ -35,7 +35,7 @@ public class SectionRegisterLogic {
                 return finishSession(player, world, clickedPos, session);
             }
         }
-        
+
         if (te instanceof TileEntityLargeRailBase) {
             if (session == null) {
                 sendMsg(player, TextFormatting.RED, "先に開始信号を右クリックしてください");
@@ -149,7 +149,10 @@ public class SectionRegisterLogic {
                 + " (レール" + sc.sectionRails.length + "本, " + session.startSignalId + " -> " + endSignalId + ")");
         return true;
     }
-    /** 左クリックでのキャンセル。セッションがあれば破棄してtrueを返す */
+
+    /**
+     * 左クリックでのキャンセル。セッションがあれば破棄してtrueを返す
+     */
     public static boolean cancelSession(EntityPlayer player) {
         if (SESSIONS.remove(player.getUniqueID()) != null) {
             syncSession(player, null);

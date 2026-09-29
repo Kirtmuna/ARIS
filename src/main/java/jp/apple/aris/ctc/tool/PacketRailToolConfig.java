@@ -5,14 +5,17 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumHand;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
-import net.minecraftforge.fml.common.network.simpleimpl.*;
+import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
+import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
+import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 public class PacketRailToolConfig implements IMessage {
     private String lineId;
     private String pattern;
     private EnumHand hand;
 
-    public PacketRailToolConfig() {}
+    public PacketRailToolConfig() {
+    }
 
     public PacketRailToolConfig(String lineId, String pattern, EnumHand hand) {
         this.lineId = lineId;

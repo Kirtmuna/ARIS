@@ -3,6 +3,7 @@ package jp.apple.aris.ctc.logic;
 import jp.apple.aris.ctc.enums.SwitchPosition;
 import jp.apple.aris.ctc.state.*;
 import net.minecraft.world.World;
+
 import java.util.Map;
 
 public class BlockSystem {
@@ -31,7 +32,7 @@ public class BlockSystem {
                         rail.updateOccupancy(world);
                     }
                 }
-                
+
                 section.setStatus(section.checkAnyRailOccupied() ? 1 : 0);
             }
 

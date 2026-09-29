@@ -19,6 +19,7 @@ public class GuiRailRegisterTool extends GuiScreen {
     private GuiTextField patternField;
     private GuiButton lineButton;
     private GuiButton pasteButton;
+    private String initialPattern = "";
 
     public GuiRailRegisterTool(ItemStack stack, EnumHand hand) {
         this.hand = hand;
@@ -26,7 +27,6 @@ public class GuiRailRegisterTool extends GuiScreen {
         this.selectedLine = nbt != null ? nbt.getString("TargetLine") : "";
         this.initialPattern = nbt != null ? nbt.getString("NamePattern") : "";
     }
-    private String initialPattern = "";
 
     @Override
     public void initGui() {
@@ -91,8 +91,14 @@ public class GuiRailRegisterTool extends GuiScreen {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (keyCode == Keyboard.KEY_ESCAPE) { this.mc.displayGuiScreen(null); return; }
-        if (keyCode == Keyboard.KEY_RETURN) { this.save(); return; }
+        if (keyCode == Keyboard.KEY_ESCAPE) {
+            this.mc.displayGuiScreen(null);
+            return;
+        }
+        if (keyCode == Keyboard.KEY_RETURN) {
+            this.save();
+            return;
+        }
         this.patternField.textboxKeyTyped(typedChar, keyCode);
     }
 

@@ -3,7 +3,9 @@ package jp.apple.aris.ctc.tool;
 import io.netty.buffer.ByteBuf;
 import jp.apple.aris.ctc.client.ClientSectionSessionCache;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
-import net.minecraftforge.fml.common.network.simpleimpl.*;
+import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
+import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
+import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -14,7 +16,8 @@ public class PacketSyncSectionSession implements IMessage {
     private String lineId = "";
     private List<String> selectedRailIds = new ArrayList<>();
 
-    public PacketSyncSectionSession() {}
+    public PacketSyncSectionSession() {
+    }
 
     public PacketSyncSectionSession(String lineId, List<String> selectedRailIds) {
         this.lineId = lineId;

@@ -1,8 +1,8 @@
 package jp.apple.aris.ctc.client;
 
-import java.util.*;
-
 import jp.apple.aris.ctc.config.LineConfig;
+
+import java.util.*;
 
 public class ClientLineCache {
     private static Map<String, LineConfig> LINES = new HashMap<>();

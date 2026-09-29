@@ -11,9 +11,9 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import java.util.HashMap;
@@ -70,12 +70,13 @@ public class RailRegisterLogic {
             config.rails.put(candidateName, rc);
             sendMsg(player, TextFormatting.AQUA, "名称変更 " + existingId + " -> " + candidateName);
         }
-        
+
         LineManager.saveLine(lineId);
         LineStateManager.initializeStates();
         ServerLineSyncHandler.broadcastLineList(world.getMinecraftServer());
         return true;
     }
+
     /**
      * configに登録済みの各レールを見て、clickedCoreと同一の論理レール(セクショングループ含む)を指すものを探す。
      * 見つかった場合はそのID、無ければnullを返す。
@@ -104,6 +105,7 @@ public class RailRegisterLogic {
         }
         return null;
     }
+
     /**
      * <> を含むパターンから、excludeId自身は"使用中"から除外して空き番号を探す。
      * <> を含まない場合はそのままリテラル名として扱う。
@@ -122,6 +124,7 @@ public class RailRegisterLogic {
             n++;
         }
     }
+
     private static void sendMsg(EntityPlayer player, TextFormatting color, String msg) {
         player.sendMessage(new TextComponentString(color + "ARIS: " + msg));
     }

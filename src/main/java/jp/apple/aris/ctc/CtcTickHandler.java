@@ -2,7 +2,6 @@ package jp.apple.aris.ctc;
 
 import jp.apple.aris.ArisCore;
 import jp.apple.aris.ctc.logic.BlockSystem;
-import jp.apple.aris.ctc.state.LineStateManager;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.FMLCommonHandler;

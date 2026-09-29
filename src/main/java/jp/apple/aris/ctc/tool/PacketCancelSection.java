@@ -1,16 +1,21 @@
 package jp.apple.aris.ctc.tool;
 
 import io.netty.buffer.ByteBuf;
-import net.minecraftforge.fml.common.network.simpleimpl.*;
+import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
+import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
+import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 public class PacketCancelSection implements IMessage {
-    public PacketCancelSection() {}
+    public PacketCancelSection() {
+    }
 
     @Override
-    public void fromBytes(ByteBuf buf) {}
+    public void fromBytes(ByteBuf buf) {
+    }
 
     @Override
-    public void toBytes(ByteBuf buf) {}
+    public void toBytes(ByteBuf buf) {
+    }
 
     public static class Handler implements IMessageHandler<PacketCancelSection, IMessage> {
         @Override

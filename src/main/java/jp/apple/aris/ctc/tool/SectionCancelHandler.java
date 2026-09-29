@@ -21,6 +21,7 @@ public class SectionCancelHandler {
             event.setCanceled(true);
         }
     }
+
     @SubscribeEvent
     public static void onLeftClickEmpty(PlayerInteractEvent.LeftClickEmpty event) {
         ItemStack held = event.getEntityPlayer().getHeldItemMainhand();

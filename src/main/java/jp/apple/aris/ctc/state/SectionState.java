@@ -1,6 +1,7 @@
 package jp.apple.aris.ctc.state;
 
 import jp.apple.aris.ctc.config.LineConfig;
+
 import java.util.ArrayList;
 import java.util.List;
 

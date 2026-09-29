@@ -22,7 +22,7 @@ public class ItemRailRegisterTool extends Item {
         this.setRegistryName(ArisCore.ID, "rail_register_tool");
         this.setCreativeTab(jp.apple.AppleLib.tabAppleLib);
     }
-    
+
     @Override
     public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
         ItemStack stack = player.getHeldItem(hand);
@@ -36,7 +36,7 @@ public class ItemRailRegisterTool extends Item {
     private void openGuiClient(ItemStack stack, EnumHand hand) {
         Minecraft.getMinecraft().displayGuiScreen(new GuiRailRegisterTool(stack, hand));
     }
-    
+
     @Override
     public EnumActionResult onItemUse(EntityPlayer player, World world, BlockPos pos, EnumHand hand,
                                       EnumFacing facing, float hitX, float hitY, float hitZ) {

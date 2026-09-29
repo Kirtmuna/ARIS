@@ -32,24 +32,37 @@ public enum SignalType {
                 .replace("_", "").replace(" ", "");
 
         switch (normalized) {
-            case "2A": return TWO_ASPECTS_A;
-            case "2B": return TWO_ASPECTS_B;
-            case "3":  return THREE_ASPECTS;
-            case "3A": return THREE_ASPECTS_A;
-            case "3B": return THREE_ASPECTS_B;
-            case "4":  return FOUR_ASPECTS;
-            case "4A": return FOUR_ASPECTS_A;
-            case "4B": return FOUR_ASPECTS_B;
-            case "5A": return FIVE_ASPECTS_A;
-            case "5B": return FIVE_ASPECTS_B;
-            case "6":  return SIX_ASPECTS;
+            case "2A":
+                return TWO_ASPECTS_A;
+            case "2B":
+                return TWO_ASPECTS_B;
+            case "3":
+                return THREE_ASPECTS;
+            case "3A":
+                return THREE_ASPECTS_A;
+            case "3B":
+                return THREE_ASPECTS_B;
+            case "4":
+                return FOUR_ASPECTS;
+            case "4A":
+                return FOUR_ASPECTS_A;
+            case "4B":
+                return FOUR_ASPECTS_B;
+            case "5A":
+                return FIVE_ASPECTS_A;
+            case "5B":
+                return FIVE_ASPECTS_B;
+            case "6":
+                return SIX_ASPECTS;
             default:
                 ArisCore.LOGGER.warn("ARIS: 未知の信号タイプ '{}' です。3灯式をデフォルトにします。", key);
                 return THREE_ASPECTS;
         }
     }
+
     /**
      * 要求された現示に対応するシグナルレベルを配列から取得する
+     *
      * @param aspectIndex 0=停止, 1=警戒, 2=注意, 3=減速, 4=進行, 5=高速進行
      * @return 対応する数値
      */

@@ -4,12 +4,7 @@ import jp.apple.aris.ArisCore;
 import jp.apple.aris.ctc.config.LineConfig;
 import jp.apple.aris.ctc.config.LineManager;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class LineStateManager {
     private static final Map<String, Map<String, RailState>> LINE_RAILS = new HashMap<>();
