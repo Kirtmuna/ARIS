@@ -1,4 +1,4 @@
-package jp.apple.aris.ctc.tool;
+package jp.apple.aris.ctc.tool.network;
 
 import io.netty.buffer.ByteBuf;
 import net.minecraft.item.ItemStack;

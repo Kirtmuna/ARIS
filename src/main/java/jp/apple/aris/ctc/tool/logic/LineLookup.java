@@ -1,4 +1,4 @@
-package jp.apple.aris.ctc.tool;
+package jp.apple.aris.ctc.tool.logic;
 
 import jp.apple.aris.common.util.PositionUtil;
 import jp.apple.aris.ctc.config.LineConfig;

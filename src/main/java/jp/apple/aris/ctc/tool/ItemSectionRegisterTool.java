@@ -1,6 +1,8 @@
 package jp.apple.aris.ctc.tool;
 
 import jp.apple.aris.ArisCore;
+import jp.apple.aris.ctc.tool.gui.GuiRailRegisterTool;
+import jp.apple.aris.ctc.tool.logic.SectionRegisterLogic;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;

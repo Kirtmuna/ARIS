@@ -1,9 +1,11 @@
-package jp.apple.aris.ctc.tool;
+package jp.apple.aris.ctc.tool.logic;
 
 import jp.apple.aris.ctc.config.LineConfig;
 import jp.apple.aris.ctc.config.LineManager;
 import jp.apple.aris.ctc.network.ServerLineSyncHandler;
 import jp.apple.aris.ctc.state.LineStateManager;
+import jp.apple.aris.ctc.tool.SectionRegisterSession;
+import jp.apple.aris.ctc.tool.network.PacketSyncSectionSession;
 import jp.ngt.rtm.electric.TileEntitySignal;
 import jp.ngt.rtm.rail.TileEntityLargeRailBase;
 import jp.ngt.rtm.rail.TileEntityLargeRailCore;

@@ -1,7 +1,8 @@
-package jp.apple.aris.ctc.tool;
+package jp.apple.aris.ctc.tool.gui;
 
 import jp.apple.aris.ArisNetwork;
 import jp.apple.aris.ctc.client.ClientLineCache;
+import jp.apple.aris.ctc.tool.network.PacketRailToolConfig;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
