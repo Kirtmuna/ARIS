@@ -9,6 +9,7 @@ public class LineConfig {
     public Map<String, SignalConfig> signals; // 信号
     public Map<String, SectionConfig> sections; // 区間
     public Map<String, SwitchConfig> switches; // ポイント
+    public Map<String, RouteConfig> routes; // 進路
     
     // 線路-config
     public static class RailConfig {
@@ -36,5 +37,14 @@ public class LineConfig {
             public String rSignal; // REVERSE時の信号ID
         }
     }
+    // 進路-config
+    public static class RouteConfig {
+        public String[] sectionId;
+        public RouteSwitchConfig route;
+
+        public static class RouteSwitchConfig {
+            public String[] nPoint;
+            public String[] rPoint;
+        }
     }
 }
