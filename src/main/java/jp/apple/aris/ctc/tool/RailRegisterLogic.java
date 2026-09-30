@@ -45,6 +45,7 @@ public class RailRegisterLogic {
             return true;
         }
 
+        LineManager.reloadLine(lineId);
         LineConfig config = LineManager.getLine(lineId);
         if (config == null) {
             sendMsg(player, TextFormatting.RED, "路線 '" + lineId + "' が見つかりません");

@@ -66,6 +66,30 @@ public class LineManager {
             ArisCore.LOGGER.error("ARIS: 路線ファイルの自動書換に失敗しました: " + file.getName(), e);
         }
     }
+    /**
+     * 指定路線のJSONファイルをディスクから再読込し、メモリ上のキャッシュを最新化する。
+     * ツールで書き換える直前に呼び、手動編集の内容を取りこぼさないようにする。
+     * @return 読み込めたらtrue、ファイルが無い/失敗したらfalse
+     */
+    public static boolean reloadLine(String lineId) {
+        File file = new File(ArisDir.lineDirectory, lineId + ".json");
+        if (!file.exists()) {
+            return false;
+        }
+
+        try (FileReader reader = new FileReader(file)) {
+            LineConfig config = GSON.fromJson(reader, LineConfig.class);
+            if (config == null) {
+                ArisCore.LOGGER.warn("ARIS: 路線ファイルの内容が空です: {}", file.getName());
+                return false;
+            }
+            LOADED_LINES.put(lineId, config);
+            return true;
+        } catch (IOException e) {
+            ArisCore.LOGGER.error("ARIS: 路線ファイルの再読込に失敗しました: " + file.getName(), e);
+            return false;
+        }
+    }
 
     /**
      * 他クラスから指定路線のデータを参照できるように

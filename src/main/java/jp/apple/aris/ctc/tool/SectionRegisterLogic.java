@@ -57,6 +57,7 @@ public class SectionRegisterLogic {
             return true;
         }
 
+        LineManager.reloadLine(lineId);
         LineConfig config = LineManager.getLine(lineId);
         if (config == null) {
             sendMsg(player, TextFormatting.RED, "路線 '" + lineId + "' が見つかりません");
@@ -109,6 +110,7 @@ public class SectionRegisterLogic {
     }
 
     private static boolean finishSession(EntityPlayer player, World world, BlockPos signalPos, SectionRegisterSession session) {
+        LineManager.reloadLine(session.lineId);
         LineConfig config = LineManager.getLine(session.lineId);
         if (config == null) {
             sendMsg(player, TextFormatting.RED, "路線が見つかりません");
