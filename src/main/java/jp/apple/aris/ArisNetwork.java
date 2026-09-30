@@ -1,9 +1,9 @@
 package jp.apple.aris;
 
 import jp.apple.aris.ctc.network.PacketSyncLineList;
-import jp.apple.aris.ctc.tool.PacketCancelSection;
-import jp.apple.aris.ctc.tool.PacketRailToolConfig;
-import jp.apple.aris.ctc.tool.PacketSyncSectionSession;
+import jp.apple.aris.ctc.tool.network.PacketCancelSection;
+import jp.apple.aris.ctc.tool.network.PacketRailToolConfig;
+import jp.apple.aris.ctc.tool.network.PacketSyncSectionSession;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
