@@ -16,7 +16,7 @@ public class SignalState {
     // 現在の信号レベルの状態
     private int currentSignalLevel = 0;
     // 共通現示インデックス (0=停止, 1=警戒, 2=注意, 3=減速, 4=進行, 5=高速進行)
-    private int currentAspect = 4; // 最初は進行で初期化
+    private int currentAspect = 0; // 最初は停止で初期化
     // 灯数
     private final SignalType signalType;
     // 区間に扱われているかどうかのフラグ
