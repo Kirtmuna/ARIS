@@ -1,5 +1,6 @@
 package jp.apple.aris.ctc.state;
 
+import jp.apple.aris.ArisCore;
 import jp.apple.aris.ctc.config.LineConfig;
 import jp.apple.aris.ctc.enums.SwitchPosition;
 import jp.ngt.rtm.rail.TileEntityLargeRailSwitchCore;
@@ -10,31 +11,36 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
 public class SwitchState {
-    private final String switchId;
-    private final LineConfig.SwitchConfig config;
-    private final RailState rail;
+    private final String pointId;          // 合成ID ("SW001.P0")
+    private final String switchId;         // 親Core側のID ("SW001")
+    private final RailState rail;          // 親Coreのレール参照
+    private final int pointIndex;          // SwitchType.getPoints()内でのindex
     private final SignalState normalSignal;
     private final SignalState reverseSignal;
 
     private SwitchPosition currentPosition = SwitchPosition.UNKNOWN;
 
-    public SwitchState(String id, LineConfig.SwitchConfig config,
-                       RailState rail, SignalState nSig, SignalState rSig) {
-        this.switchId = id;
-        this.config = config;
+    public SwitchState(String pointId, String switchId, RailState rail, int pointIndex,
+                      SignalState nSig, SignalState rSig) {
+        this.pointId = pointId;
+        this.switchId = switchId;
         this.rail = rail;
+        this.pointIndex = pointIndex;
         this.normalSignal = nSig;
         this.reverseSignal = rSig;
     }
     /** RTM側の転換状態を読む */
     public void updateFromWorld(World world) {
         SwitchPosition prev = this.currentPosition;
-        this.currentPosition = readPosition(world, prev);
+        this.currentPosition = readPosition(world);
+        if (prev != this.currentPosition) {
+            ArisCore.LOGGER.info("ARIS: ポイント '{}' : {} -> {}", pointId, prev, this.currentPosition);
+        }
     }
 
-    private SwitchPosition readPosition(World world, SwitchPosition fallback) {
+    private SwitchPosition readPosition(World world) {
         if (world == null || rail == null || !world.isBlockLoaded(rail.getRailPosition())) {
-            return fallback;
+            return this.currentPosition;
         }
 
         TileEntity te = world.getTileEntity(rail.getRailPosition());
@@ -43,18 +49,19 @@ public class SwitchState {
         }
 
         SwitchType st = ((TileEntityLargeRailSwitchCore) te).getSwitch();
-        if (!(st instanceof SwitchType.SwitchBasic)) {
-            return SwitchPosition.UNKNOWN;
-        }
+        if (st == null) return SwitchPosition.UNKNOWN;
 
         Point[] points = st.getPoints();
-        if (points == null || points.length == 0 || points[0].branchDir == RailDir.NONE) {
+        if (points == null || pointIndex < 0 || pointIndex >= points.length) {
             return SwitchPosition.UNKNOWN;
         }
 
-        return points[0].rpRoot.checkRSInput(world)
-                ? SwitchPosition.REVERSE
-                : SwitchPosition.NORMAL;
+        Point p = points[pointIndex];
+        if (p.branchDir == RailDir.NONE) {
+            return SwitchPosition.UNKNOWN;
+        }
+
+        return p.rpRoot.checkRSInput(world) ? SwitchPosition.REVERSE : SwitchPosition.NORMAL;
     }
     /** 現在の向きに対応する信号 */
     public SignalState getActiveSignal() {
@@ -73,8 +80,8 @@ public class SwitchState {
         }
     }
 
+    public String getPointId() { return pointId; }
     public String getSwitchId() { return switchId; }
-    public RailState getRail() { return rail; }
     public SignalState getNormalSignal() { return normalSignal; }
     public SignalState getReverseSignal() { return reverseSignal; }
     public SwitchPosition getCurrentPosition() { return currentPosition; }
