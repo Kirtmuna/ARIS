@@ -18,9 +18,9 @@ public class BlockSystem {
             if (sectionMap == null) continue;
 
             // 0. ポイントの向きを最新にする
-            Map<String, SwitchState> switches = LineStateManager.getSwitches(lineEntry.getKey());
-            if (switches != null) {
-                for (SwitchState sw : switches.values()) sw.updateFromWorld(world);
+            Map<String, SwitchState> points = LineStateManager.getPoints(lineEntry.getKey());
+            if (points != null) {
+                for (SwitchState p : points.values()) p.updateFromWorld(world);
             }
 
             // 1. 全線レールの状態を最新にし、区間の基本ステータスを確定させる
@@ -68,13 +68,13 @@ public class BlockSystem {
                 startSig.setSignal(world, targetAspect);
             }
             // 2.5 ポイントの鎖錠: 開通していない側の信号を停止にする
-            if (switches != null) {
-                for (SwitchState sw : switches.values()) {
-                    SignalState closed = sw.getClosedSignal();
+            if (points != null) {
+                for (SwitchState p : points.values()) {
+                    SignalState closed = p.getClosedSignal();
                     if (closed != null) closed.setSignal(world, 0);
-                    if (sw.getCurrentPosition() == SwitchPosition.UNKNOWN) {
-                        if (sw.getNormalSignal() != null) sw.getNormalSignal().setSignal(world, 0);
-                        if (sw.getReverseSignal() != null) sw.getReverseSignal().setSignal(world, 0);
+                    if (p.getCurrentPosition() == SwitchPosition.UNKNOWN) {
+                        if (p.getNormalSignal() != null) p.getNormalSignal().setSignal(world, 0);
+                        if (p.getReverseSignal() != null) p.getReverseSignal().setSignal(world, 0);
                     }
                 }
             }
