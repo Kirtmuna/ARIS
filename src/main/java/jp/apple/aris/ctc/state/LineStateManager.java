@@ -11,6 +11,7 @@ public class LineStateManager {
     private static final Map<String, Map<String, SignalState>> LINE_SIGNALS = new HashMap<>();
     private static final Map<String, Map<String, SectionState>> LINE_SECTIONS = new HashMap<>();
     private static final Map<String, Map<String, SwitchState>> LINE_POINTS = new HashMap<>();
+    private static final Map<String, Map<String, RouteState>> LINE_ROUTES = new HashMap<>();
 
     /**
      * LineConfigを元にすべてのStateインスタンスを生成する
@@ -20,6 +21,7 @@ public class LineStateManager {
         LINE_SIGNALS.clear();
         LINE_SECTIONS.clear();
         LINE_POINTS.clear();
+        LINE_ROUTES.clear();
         // LineManagerに保管されているすべての路線をループ処理
         for (Map.Entry<String, LineConfig> entry : LineManager.getAllLines().entrySet()) {
             String lineId = entry.getKey();
@@ -32,6 +34,7 @@ public class LineStateManager {
             Map<String, SectionState> sectionMap = new HashMap<>();
             Map<String, SwitchState> pointMap = new HashMap<>();
             Set<String> usedAsStart = new HashSet<>();
+            Map<String, RouteState> routeMap = new HashMap<>();
             
             // 1. レールのインスタンス化
             if (config.rails != null) {
@@ -108,6 +111,52 @@ public class LineStateManager {
                     }
                 }
             }
+            // 4. 進路のインスタンス化
+            if (config.routes != null) {
+                for (Map.Entry<String, LineConfig.RouteConfig> rtEntry : config.routes.entrySet()) {
+                    String routeId = rtEntry.getKey();
+                    LineConfig.RouteConfig rc = rtEntry.getValue();
+
+                    List<SectionState> sections = new ArrayList<>();
+                    if (rc.sectionId != null) {
+                        for (String secId : rc.sectionId) {
+                            SectionState s = sectionMap.get(secId);
+                            if (s == null) {
+                                ArisCore.LOGGER.warn("ARIS: 進路 '{}' のsection '{}' が見つかりません", routeId, secId);
+                                continue;
+                            }
+                            sections.add(s);
+                        }
+                    }
+
+                    List<SwitchState> nPoints = new ArrayList<>();
+                    List<SwitchState> rPoints = new ArrayList<>();
+                    if (rc.route != null) {
+                        if (rc.route.nPoint != null) {
+                            for (String pid : rc.route.nPoint) {
+                                SwitchState p = pointMap.get(pid);
+                                if (p == null) {
+                                    ArisCore.LOGGER.warn("ARIS: 進路 '{}' のpoint(N) '{}' が見つかりません", routeId, pid);
+                                    continue;
+                                }
+                                nPoints.add(p);
+                            }
+                        }
+                        if (rc.route.rPoint != null) {
+                            for (String pid : rc.route.rPoint) {
+                                SwitchState p = pointMap.get(pid);
+                                if (p == null) {
+                                    ArisCore.LOGGER.warn("ARIS: 進路 '{}' のpoint(R) '{}' が見つかりません", routeId, pid);
+                                    continue;
+                                }
+                                rPoints.add(p);
+                            }
+                        }
+                    }
+
+                    routeMap.put(routeId, new RouteState(routeId, rc, sections, nPoints, rPoints));
+                }
+            }
             for (Map.Entry<String, SignalState> sigEntry : signalMap.entrySet()) {
                 if (!usedAsStart.contains(sigEntry.getKey())) {
                     sigEntry.getValue().setControlled(false);
@@ -119,6 +168,7 @@ public class LineStateManager {
             LINE_SIGNALS.put(lineId, signalMap);
             LINE_SECTIONS.put(lineId, sectionMap);
             LINE_POINTS.put(lineId, pointMap);
+            LINE_ROUTES.put(lineId, routeMap);
 
             ArisCore.LOGGER.info("ARIS: 路線のインスタンス化が完了しました: {} (区間数: {})", lineId, sectionMap.size());
         }
@@ -130,4 +180,5 @@ public class LineStateManager {
 
     public static Map<String, Map<String, SectionState>> getAllLineSections() { return LINE_SECTIONS; }
     public static Map<String, SwitchState> getPoints(String lineId) { return LINE_POINTS.get(lineId); }
+    public static Map<String, RouteState> getRoutes(String lineId) { return LINE_ROUTES.get(lineId); }
 }
