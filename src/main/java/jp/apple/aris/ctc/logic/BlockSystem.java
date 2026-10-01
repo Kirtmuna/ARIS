@@ -1,5 +1,7 @@
 package jp.apple.aris.ctc.logic;
 
+import jp.apple.aris.ArisCore;
+import jp.apple.aris.cbi.CbiManager;
 import jp.apple.aris.ctc.enums.SwitchPosition;
 import jp.apple.aris.ctc.state.*;
 import net.minecraft.world.World;
@@ -14,6 +16,7 @@ public class BlockSystem {
         if (world == null || world.isRemote) return;
 
         for (Map.Entry<String, Map<String, SectionState>> lineEntry : LineStateManager.getAllLineSections().entrySet()) {
+            String lineId = lineEntry.getKey();
             Map<String, SectionState> sectionMap = lineEntry.getValue();
             if (sectionMap == null) continue;
 
@@ -83,6 +86,39 @@ public class BlockSystem {
                 if (!sig.isControlled()) {
                     sig.setSignal(world, 0);
                 }
+            }
+            // 4. 進路の自動解放
+            runRouteAutoRelease(world, lineId);
+        }
+    }
+    /**
+     * 進路の状態を監視し、列車が進路内を通過し終えたら自動解放する。
+     * - SET      : 予約済み・まだ進入なし
+     * - OCCUPIED : 一度でも区間に進入した
+     * - 全區間が無在線になったら解放
+     */
+    private static void runRouteAutoRelease(World world, String lineId) {
+        Map<String, RouteState> routes = LineStateManager.getRoutes(lineId);
+        if (routes == null) return;
+
+        for (RouteState route : routes.values()) {
+            if (route.getStatus() == RouteState.Status.IDLE) continue;
+
+            boolean anyOccupied = false;
+            for (SectionState s : route.getSections()) {
+                if (s.isOccupied()) {
+                    anyOccupied = true;
+                    break;
+                }
+            }
+
+            if (route.getStatus() == RouteState.Status.SET && anyOccupied) {
+                route.setStatus(RouteState.Status.OCCUPIED);
+                ArisCore.LOGGER.info("ARIS: 進路 '{}' に列車が進入しました", route.getRouteId());
+            } else if (route.getStatus() == RouteState.Status.OCCUPIED && !anyOccupied) {
+                CbiManager.get(lineId).releaseRoute(world, route);
+                route.setStatus(RouteState.Status.IDLE);
+                ArisCore.LOGGER.info("ARIS: 進路 '{}' を自動解放しました", route.getRouteId());
             }
         }
     }
