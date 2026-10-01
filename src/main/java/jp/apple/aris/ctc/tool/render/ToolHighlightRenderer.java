@@ -10,8 +10,12 @@ import jp.apple.aris.ctc.tool.ItemSectionRegisterTool;
 import jp.ngt.rtm.electric.TileEntitySignal;
 import jp.ngt.rtm.rail.TileEntityLargeRailBase;
 import jp.ngt.rtm.rail.TileEntityLargeRailCore;
+import jp.ngt.rtm.rail.TileEntityLargeRailSwitchCore;
+import jp.ngt.rtm.rail.util.Point;
 import jp.ngt.rtm.rail.util.RailMap;
+import jp.ngt.rtm.rail.util.SwitchType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
@@ -87,6 +91,12 @@ public class ToolHighlightRenderer {
                 if (isSectionTool && config != null) {
                     String signalId = findSignalId(config, pos);
                     hudLines.add(signalId != null ? "信号ID: " + signalId : "信号ID: 未登録");
+                    if (signalId != null) {
+                        List<String> sections = findSectionsWithSignal(config, signalId);
+                        if (!sections.isEmpty()) {
+                            hudLines.add("所属区間: " + String.join(", ", sections));
+                        }
+                    }
                 }
             } else if (te instanceof TileEntityLargeRailBase) {
                 TileEntityLargeRailCore core = ((TileEntityLargeRailBase) te).getRailCore();
@@ -116,6 +126,7 @@ public class ToolHighlightRenderer {
                 }
             }
         }
+        renderSwitchPointIndices(mc, event.getPartialTicks());
 
         finishRender();
     }
@@ -221,5 +232,93 @@ public class ToolHighlightRenderer {
             }
         }
         return result;
+    }
+    /** 指定信号を startSignal か endSignal に持つ区間を列挙 */
+    private static List<String> findSectionsWithSignal(LineConfig config, String signalId) {
+        List<String> result = new ArrayList<>();
+        if (config.sections == null) return result;
+        for (Map.Entry<String, LineConfig.SectionConfig> e : config.sections.entrySet()) {
+            LineConfig.SectionConfig sc = e.getValue();
+            if (signalId.equals(sc.startSignal)) {
+                result.add(e.getKey() + "(始)");
+            } else if (signalId.equals(sc.endSignal)) {
+                result.add(e.getKey() + "(終)");
+            }
+        }
+        return result;
+    }
+    /** プレイヤー周辺のSwitchCoreのPoint indexを3D空間に描画 */
+    private static void renderSwitchPointIndices(Minecraft mc, float partialTicks) {
+        if (mc.world == null || mc.player == null) return;
+
+        final double RANGE = 32.0;
+        final double RANGE_SQ = RANGE * RANGE;
+        double px = mc.player.posX;
+        double py = mc.player.posY;
+        double pz = mc.player.posZ;
+
+        for (TileEntity te : mc.world.loadedTileEntityList) {
+            BlockPos tePos = te.getPos();
+            double dx = tePos.getX() + 0.5 - px;
+            double dy = tePos.getY() + 0.5 - py;
+            double dz = tePos.getZ() + 0.5 - pz;
+            if (dx * dx + dy * dy + dz * dz > RANGE_SQ) continue;
+            if (!(te instanceof TileEntityLargeRailSwitchCore)) continue;
+
+            TileEntityLargeRailSwitchCore core = (TileEntityLargeRailSwitchCore) te;
+            SwitchType st = core.getSwitch();
+            if (st == null) continue;
+            Point[] points = st.getPoints();
+            if (points == null) continue;
+            
+            Map<Long, List<Integer>> posToIndices = new java.util.LinkedHashMap<>();
+            for (int i = 0; i < points.length; i++) {
+                Point p = points[i];
+                if (p == null || p.rpRoot == null) continue;
+                long key = new BlockPos(p.rpRoot.blockX, p.rpRoot.blockY, p.rpRoot.blockZ).toLong();
+                posToIndices.computeIfAbsent(key, k -> new ArrayList<>()).add(i);
+            }
+
+            for (Map.Entry<Long, List<Integer>> e : posToIndices.entrySet()) {
+                BlockPos pPos = BlockPos.fromLong(e.getKey());
+                StringBuilder sb = new StringBuilder();
+                for (int idx : e.getValue()) {
+                    if (sb.length() > 0) sb.append("/");
+                    sb.append("P").append(idx);
+                }
+                drawWorldText(sb.toString(),
+                        pPos.getX() + 0.5, pPos.getY() + 1.2, pPos.getZ() + 0.5,
+                        partialTicks);
+            }
+        }
+    }
+    /** ワールド座標にビルボードテキストを描画 */
+    private static void drawWorldText(String text, double x, double y, double z, float partialTicks) {
+        Minecraft mc = Minecraft.getMinecraft();
+        Entity view = mc.getRenderViewEntity();
+        if (view == null) return;
+
+        double vx = view.lastTickPosX + (view.posX - view.lastTickPosX) * partialTicks;
+        double vy = view.lastTickPosY + (view.posY - view.lastTickPosY) * partialTicks;
+        double vz = view.lastTickPosZ + (view.posZ - view.lastTickPosZ) * partialTicks;
+
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(x - vx, y - vy, z - vz);
+        GlStateManager.rotate(-mc.getRenderManager().playerViewY, 0.0F, 1.0F, 0.0F);
+        GlStateManager.rotate(mc.getRenderManager().playerViewX, 1.0F, 0.0F, 0.0F);
+        GlStateManager.scale(-0.025F, -0.025F, 0.025F);
+
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
+
+        int width = mc.fontRenderer.getStringWidth(text);
+        int halfWidth = width / 2;
+        Gui.drawRect(-halfWidth - 1, -1, halfWidth + 1, 8, 0x80000000);
+        mc.fontRenderer.drawString(text, -halfWidth, 0, 0xFFFF00);
+
+        GlStateManager.enableDepth();
+        GlStateManager.enableLighting();
+        GlStateManager.popMatrix();
     }
 }
