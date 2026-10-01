@@ -5,10 +5,8 @@ import com.google.gson.GsonBuilder;
 import jp.apple.aris.ArisCore;
 import jp.apple.aris.util.ArisDir;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,8 +36,12 @@ public class LineManager {
             // 内部的にはファイル名から拡張子を除いたものを路線Idとして保持する
             String lineId = file.getName().substring(0, file.getName().lastIndexOf('.'));
             
-            try (FileReader reader = new FileReader(file)) {
+            try (Reader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)) {
                 LineConfig config = GSON.fromJson(reader, LineConfig.class);
+                if (config == null) {
+                    ArisCore.LOGGER.warn("ARIS: 路線ファイルの内容が空です: {}", file.getName());
+                    continue;
+                }
                 
                 LOADED_LINES.put(lineId, config);
                 ArisCore.LOGGER.info("ARIS: 路線データをロードしました: {} ({})", lineId, config.name);
@@ -59,7 +61,7 @@ public class LineManager {
 
         File file = new File(ArisDir.lineDirectory, lineId + ".json");
 
-        try (FileWriter writer = new FileWriter(file)) {
+        try (Writer writer = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
             GSON.toJson(config, writer);
             ArisCore.LOGGER.info("ARIS: レールのコア座標への自動書換が完了しました: {}.json", lineId);
         } catch (IOException e) {
@@ -77,7 +79,7 @@ public class LineManager {
             return false;
         }
 
-        try (FileReader reader = new FileReader(file)) {
+        try (Reader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)) {
             LineConfig config = GSON.fromJson(reader, LineConfig.class);
             if (config == null) {
                 ArisCore.LOGGER.warn("ARIS: 路線ファイルの内容が空です: {}", file.getName());
