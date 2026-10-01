@@ -48,6 +48,13 @@ public class SwitchState {
             return SwitchPosition.UNKNOWN;
         }
 
+        TileEntityLargeRailSwitchCore core = (TileEntityLargeRailSwitchCore) te;
+
+        Boolean api = core.getApiPointPosition(pointIndex);
+        if (api != null) {
+            return api ? SwitchPosition.REVERSE : SwitchPosition.NORMAL;
+        }
+
         SwitchType st = ((TileEntityLargeRailSwitchCore) te).getSwitch();
         if (st == null) return SwitchPosition.UNKNOWN;
 
@@ -78,6 +85,26 @@ public class SwitchState {
             case REVERSE: return normalSignal;
             default: return null;
         }
+    }
+
+    /**
+     * 分岐をApiから扱う
+     */
+    public void setPosition(World world, SwitchPosition pos) {
+        if (rail == null || pos == SwitchPosition.UNKNOWN) return;
+        TileEntity te = world.getTileEntity(rail.getRailPosition());
+        if (!(te instanceof TileEntityLargeRailSwitchCore)) return;
+
+        boolean reversed = (pos == SwitchPosition.REVERSE);
+        ((TileEntityLargeRailSwitchCore) te).setApiPointPosition(pointIndex, reversed);
+    }
+
+    public void releaseApiControl(World world) {
+        if (rail == null) return;
+        TileEntity te = world.getTileEntity(rail.getRailPosition());
+        if (!(te instanceof TileEntityLargeRailSwitchCore)) return;
+
+        ((TileEntityLargeRailSwitchCore) te).clearApiPointPosition(pointIndex);
     }
 
     public String getPointId() { return pointId; }
