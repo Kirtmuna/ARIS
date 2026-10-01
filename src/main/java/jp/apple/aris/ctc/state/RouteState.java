@@ -6,6 +6,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class RouteState {
+    public enum Status { IDLE, SET, OCCUPIED }
+    private Status status = Status.IDLE;
+    
     private final String routeId;
     private final LineConfig.RouteConfig config;
 
@@ -27,4 +30,8 @@ public class RouteState {
     public List<SectionState> getSections() { return sections; }
     public List<SwitchState> getNormalPoints() { return normalPoints; }
     public List<SwitchState> getReversePoints() { return reversePoints; }
+    
+    public Status getStatus() { return status; }
+    public boolean isActive() { return status != Status.IDLE; }
+    public void setStatus(Status s) { this.status = s; }
 }
