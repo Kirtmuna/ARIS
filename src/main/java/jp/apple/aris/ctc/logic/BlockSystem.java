@@ -6,7 +6,9 @@ import jp.apple.aris.ctc.enums.SwitchPosition;
 import jp.apple.aris.ctc.state.*;
 import net.minecraft.world.World;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class BlockSystem {
     /**
@@ -70,12 +72,35 @@ public class BlockSystem {
                 }
                 startSig.setSignal(world, targetAspect);
             }
-            // 2.5 ポイントの鎖錠: 開通していない側の信号を停止にする
+            // 2.5 ポイントの鎖錠
             if (points != null) {
                 for (SwitchState p : points.values()) {
                     SignalState closed = p.getClosedSignal();
                     if (closed != null) closed.setSignal(world, 0);
                     if (p.getCurrentPosition() == SwitchPosition.UNKNOWN) {
+                        if (p.getNormalSignal() != null) p.getNormalSignal().setSignal(world, 0);
+                        if (p.getReverseSignal() != null) p.getReverseSignal().setSignal(world, 0);
+                    }
+                }
+                Map<String, RouteState> routes = LineStateManager.getRoutes(lineId);
+                Set<String> activeRoutePoints = new HashSet<>();
+                Set<String> activeRouteSwitches = new HashSet<>();
+                if (routes != null) {
+                    for (RouteState route : routes.values()) {
+                        if (!route.isActive()) continue;
+                        for (SwitchState p : route.getNormalPoints()) {
+                            activeRoutePoints.add(p.getPointId());
+                            activeRouteSwitches.add(p.getSwitchId());
+                        }
+                        for (SwitchState p : route.getReversePoints()) {
+                            activeRoutePoints.add(p.getPointId());
+                            activeRouteSwitches.add(p.getSwitchId());
+                        }
+                    }
+                }
+                for (SwitchState p : points.values()) {
+                    if (activeRouteSwitches.contains(p.getSwitchId())
+                            && !activeRoutePoints.contains(p.getPointId())) {
                         if (p.getNormalSignal() != null) p.getNormalSignal().setSignal(world, 0);
                         if (p.getReverseSignal() != null) p.getReverseSignal().setSignal(world, 0);
                     }
