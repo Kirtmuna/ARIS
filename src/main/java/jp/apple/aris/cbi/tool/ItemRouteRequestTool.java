@@ -1,12 +1,11 @@
 package jp.apple.aris.cbi.tool;
 
 import jp.apple.aris.ArisCore;
-import jp.apple.aris.cbi.tool.gui.GuiRouteSelectMenu;
+import jp.apple.aris.cbi.tool.gui.GuiLineSelectMenu;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumHand;
@@ -34,8 +33,6 @@ public class ItemRouteRequestTool extends Item {
 
     @SideOnly(Side.CLIENT)
     private void openGuiClient(ItemStack stack, EnumHand hand) {
-        NBTTagCompound nbt = stack.getTagCompound();
-        String lineId = nbt != null ? nbt.getString("TargetLine") : "";
-        Minecraft.getMinecraft().displayGuiScreen(new GuiRouteSelectMenu(lineId, hand));
+        Minecraft.getMinecraft().displayGuiScreen(new GuiLineSelectMenu(hand));
     }
 }
