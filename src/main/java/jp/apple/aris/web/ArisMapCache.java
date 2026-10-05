@@ -37,9 +37,14 @@ public class ArisMapCache {
         Map<String, Object> m = new HashMap<>();
         m.put("version", version);
 
-        List<List<double[]>> flatRails = new ArrayList<>();
-        for (List<List<double[]>> polys : rails.values()) flatRails.addAll(polys);
-        m.put("rails", flatRails);
+        List<Map<String, Object>> railsOut = new ArrayList<>();
+        for (Map.Entry<String, List<List<double[]>>> e : rails.entrySet()) {
+            Map<String, Object> r = new HashMap<>();
+            r.put("key", e.getKey());
+            r.put("polylines", e.getValue());
+            railsOut.add(r);
+        }
+        m.put("rails", railsOut);
 
         List<Map<String, Object>> sigs = new ArrayList<>();
         for (Map.Entry<String, double[]> e : signals.entrySet()) {

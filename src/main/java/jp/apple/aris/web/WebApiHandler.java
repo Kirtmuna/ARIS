@@ -9,6 +9,9 @@ import jp.apple.aris.ctc.state.LineStateManager;
 import jp.apple.aris.ctc.state.SignalState;
 import jp.ngt.rtm.electric.TileEntitySignal;
 import jp.ngt.rtm.rail.TileEntityLargeRailCore;
+import jp.ngt.rtm.rail.TileEntityLargeRailSwitchCore;
+import jp.ngt.rtm.rail.util.Point;
+import jp.ngt.rtm.rail.util.SwitchType;
 import jp.ngt.rtm.rail.util.RailMap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tileentity.TileEntity;
@@ -125,6 +128,10 @@ public class WebApiHandler implements HttpHandler {
         List<String> sectionIds = new ArrayList<>();
         List<String> routeIds = new ArrayList<>();
         Map<String, Object> lineConfigs = new HashMap<>();
+        List<Map<String, Object>> pointMarks = new ArrayList<>();
+
+        MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
+        WorldServer world = server != null ? server.getWorld(0) : null;
 
         for (String lineId : LineManager.getAllLines().keySet()) {
             LineConfig cfg = LineManager.getLine(lineId);
@@ -132,10 +139,50 @@ public class WebApiHandler implements HttpHandler {
             if (cfg.sections != null) sectionIds.addAll(cfg.sections.keySet());
             if (cfg.routes != null) routeIds.addAll(cfg.routes.keySet());
             lineConfigs.put(lineId, cfg);
+            
+            if (cfg.switches == null) continue;
+            Map<String, jp.apple.aris.ctc.state.SwitchState> pointMap =
+                    LineStateManager.getPoints(lineId);
+            if (pointMap == null) continue;
+
+            for (String switchId : cfg.switches.keySet()) {
+                LineConfig.SwitchConfig sc = cfg.switches.get(switchId);
+                if (sc == null || sc.pos == null) continue;
+                
+                if (world == null || !world.isBlockLoaded(
+                        new BlockPos(sc.pos[0], sc.pos[1], sc.pos[2]))) {
+                    continue;
+                }
+                TileEntity te = world.getTileEntity(
+                        new BlockPos(sc.pos[0], sc.pos[1], sc.pos[2]));
+                if (!(te instanceof TileEntityLargeRailSwitchCore)) continue;
+
+                TileEntityLargeRailSwitchCore core =
+                        (TileEntityLargeRailSwitchCore) te;
+                SwitchType st = core.getSwitch();
+                if (st == null) continue;
+                Point[] points = st.getPoints();
+                if (points == null) continue;
+
+                for (int i = 0; i < points.length; i++) {
+                    Point p = points[i];
+                    if (p == null || p.rpRoot == null) continue;
+                    Map<String, Object> pm = new HashMap<>();
+                    pm.put("switchId", switchId);
+                    pm.put("index", i);
+                    pm.put("pos", new double[]{
+                            p.rpRoot.posX,
+                            p.rpRoot.posY,
+                            p.rpRoot.posZ
+                    });
+                    pointMarks.add(pm);
+                }
+            }
         }
         m.put("sections", sectionIds);
         m.put("routes", routeIds);
         m.put("lineConfigs", lineConfigs);
+        m.put("points", pointMarks);
         return m;
     }
     

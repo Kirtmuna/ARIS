@@ -5,6 +5,8 @@
     let camera = { x: 0, y: 0, scale: 1.5 };
     let rails = [];
     let signals = [];
+    let switches = [];
+    let points = [];
     let sectionsData = [];
     let routesData = [];
     let dragging = false;
@@ -43,17 +45,24 @@
         ctx.fillRect(0, 0, w, h);
 
         // レール
-        ctx.strokeStyle = '#fff';
+        const switchRailKeys = new Set(
+            switches.map(sw => sw.pos[0] + ',' + sw.pos[1] + ',' + sw.pos[2])
+        );
+
         ctx.lineWidth = 2;
         ctx.lineCap = 'round';
-        for (const poly of rails) {
-            ctx.beginPath();
-            for (let i = 0; i < poly.length; i++) {
-                const p = poly[i];
-                const [sx, sy] = worldToScreen(p[0], p[2]);
-                if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+        for (const r of rails) {
+            const isSwitch = switchRailKeys.has(r.key);
+            ctx.strokeStyle = isSwitch ? '#ff8800' : '#fff';
+            for (const poly of r.polylines) {
+                ctx.beginPath();
+                for (let i = 0; i < poly.length; i++) {
+                    const p = poly[i];
+                    const [sx, sy] = worldToScreen(p[0], p[2]);
+                    if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+                }
+                ctx.stroke();
             }
-            ctx.stroke();
         }
 
         // 信号
@@ -82,6 +91,15 @@
                 ctx.lineWidth = signalOutline;
                 ctx.stroke();
             }
+        }
+        for (const pt of points) {
+            const [sx, sy] = worldToScreen(pt.pos[0], pt.pos[2]);
+            const r = signalRadius * 1.0;
+            ctx.fillStyle = '#ff3030';
+            ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+            ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+            ctx.lineWidth = signalOutline;
+            ctx.strokeRect(sx - r, sy - r, r * 2, r * 2);
         }
     }
     // パン/ズーム
@@ -528,6 +546,20 @@
             signals = data.signals || [];
             sectionsData = data.sections || [];
             routesData = data.routes || [];
+            
+            switches = [];
+            const lineConfigs = data.lineConfigs || {};
+            for (const lineId of Object.keys(lineConfigs)) {
+                const cfg = lineConfigs[lineId];
+                if (!cfg || !cfg.switches) continue;
+                for (const swName of Object.keys(cfg.switches)) {
+                    const sw = cfg.switches[swName];
+                    if (!sw || !sw.pos) continue;
+                    switches.push({ name: swName, pos: sw.pos, lineId });
+                }
+            }
+
+            points = data.points || [];
             syncItemsFromServer();
             renderList('sections');
             renderList('routes');
