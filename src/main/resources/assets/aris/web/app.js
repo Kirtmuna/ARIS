@@ -57,6 +57,11 @@
         }
 
         // 信号
+        const sizeRatio = Math.min(1, camera.scale / 1.5);
+        const signalRadius = 5 * sizeRatio;
+        const signalStackGap = 10 * sizeRatio;
+        const signalOutline = Math.max(1, 1 * sizeRatio);
+
         const groups = new Map();
         for (const s of signals) {
             const key = Math.round(s.pos[0]) + ',' + Math.round(s.pos[2]);
@@ -68,13 +73,13 @@
             for (let i = 0; i < list.length; i++) {
                 const s = list[i];
                 const [sx, syBase] = worldToScreen(s.pos[0], s.pos[2]);
-                const sy = syBase - i * 10;
+                const sy = syBase - i * signalStackGap;
                 ctx.fillStyle = aspectColor(s.aspect);
                 ctx.beginPath();
-                ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+                ctx.arc(sx, sy, signalRadius, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-                ctx.lineWidth = 1;
+                ctx.lineWidth = signalOutline;
                 ctx.stroke();
             }
         }
