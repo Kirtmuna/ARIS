@@ -4,6 +4,8 @@ import jp.apple.aris.ctc.command.CommandCtc;
 import jp.apple.aris.ctc.config.LineManager;
 import jp.apple.aris.ctc.state.LineStateManager;
 import jp.apple.aris.util.ArisDir;
+import jp.apple.aris.web.ArisMapCache;
+import jp.apple.aris.web.ArisWebServer;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
@@ -39,5 +41,7 @@ public class ArisCore {
         LineManager.loadAllLines();
         LineStateManager.initializeStates();
         event.registerServerCommand(new CommandCtc());
+        ArisMapCache.get().load();
+        ArisWebServer.start();
     }
 }
