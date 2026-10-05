@@ -261,21 +261,36 @@
         });
         li.addEventListener('dragend', () => {
             li.classList.remove('dragging');
-            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            document.querySelectorAll('.drag-over-before, .drag-over-into, .drag-over-after').forEach(el => {
+                el.classList.remove('drag-over-before', 'drag-over-into', 'drag-over-after');
+            });
         });
         li.addEventListener('dragover', e => {
             if (!dragSrc || dragSrc.list !== listKey) return;
             if (dragSrc.id === li.dataset.id) return;
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
-            li.classList.add('drag-over');
+
+            const rect = li.getBoundingClientRect();
+            const rel = (e.clientY - rect.top) / rect.height;
+            const isFolder = li.dataset.type === 'folder';
+
+            li.classList.remove('drag-over-before', 'drag-over-into', 'drag-over-after');
+
+            if (isFolder && rel > 0.25 && rel < 0.75) {
+                li.classList.add('drag-over-into');
+            } else if (rel <= 0.5) {
+                li.classList.add('drag-over-before');
+            } else {
+                li.classList.add('drag-over-after');
+            }
         });
         li.addEventListener('dragleave', () => {
-            li.classList.remove('drag-over');
+            li.classList.remove('drag-over-before', 'drag-over-into', 'drag-over-after');
         });
         li.addEventListener('drop', e => {
             e.preventDefault();
-            li.classList.remove('drag-over');
+            li.classList.remove('drag-over-before', 'drag-over-into', 'drag-over-after');
             if (!dragSrc || dragSrc.list !== listKey) return;
             if (dragSrc.id === li.dataset.id) return;
 

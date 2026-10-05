@@ -56,7 +56,21 @@ main { flex: 1; display: flex; min-height: 0; }
 .treeList li.selected { background: #2a3a55; }
 .treeList li.folder { color: #ddd; font-weight: 600; }
 .treeList li.item { color: #bbb; }
-.treeList li.drag-over { background: #3a3050; outline: 1px solid #6a5ac0; }
+/* フォルダの中に入れる */
+.treeList li.drag-over-into {
+    background: #3a3050;
+    outline: 1px solid #6a5ac0;
+}
+/* この行の前に挿入 */
+.treeList li.drag-over-before {
+    box-shadow: inset 0 3px 0 0 #6a5ac0;
+    background: #1e1a30;
+}
+/* この行の後に挿入 */
+.treeList li.drag-over-after {
+    box-shadow: inset 0 -3px 0 0 #6a5ac0;
+    background: #1e1a30;
+}
 .treeList li.dragging { opacity: 0.4; }
 .treeList li.folder .arrow {
     display: inline-block;
