@@ -3,6 +3,10 @@ package jp.apple.aris.web;
 import com.google.gson.Gson;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
+import jp.apple.aris.ctc.config.LineConfig;
+import jp.apple.aris.ctc.config.LineManager;
+import jp.apple.aris.ctc.state.LineStateManager;
+import jp.apple.aris.ctc.state.SignalState;
 import jp.ngt.rtm.electric.TileEntitySignal;
 import jp.ngt.rtm.rail.TileEntityLargeRailCore;
 import jp.ngt.rtm.rail.util.RailMap;
@@ -39,7 +43,7 @@ public class WebApiHandler implements HttpHandler {
                     result = mapVersion();
                     break;
                 case "/api/map":
-                    result = ArisMapCache.get().snapshot();
+                    result = mapSnapshot();
                     break;
                 default:
                     sendJson(ex, 404, err("unknown endpoint"));
@@ -57,7 +61,7 @@ public class WebApiHandler implements HttpHandler {
         m.put("ok", true);
         return m;
     }
-    
+
     private Map<String, Object> refresh() {
         MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
         List<List<double[]>> rails = new ArrayList<>();
@@ -72,7 +76,7 @@ public class WebApiHandler implements HttpHandler {
 
         WorldServer world = server.getWorld(0);
         List<TileEntity> tes = new ArrayList<>(world.loadedTileEntityList);
-        
+
         for (TileEntity te : tes) {
             if (te instanceof TileEntityLargeRailCore) {
                 TileEntityLargeRailCore core = (TileEntityLargeRailCore) te;
@@ -92,7 +96,7 @@ public class WebApiHandler implements HttpHandler {
                 }
             }
         }
-        
+
         for (TileEntity te : tes) {
             if (!(te instanceof TileEntitySignal)) continue;
             BlockPos pos = te.getPos();
@@ -108,19 +112,36 @@ public class WebApiHandler implements HttpHandler {
         r.put("signals", signals);
         return r;
     }
-    
+
     private Map<String, Object> mapVersion() {
         Map<String, Object> m = new HashMap<>();
         m.put("version", ArisMapCache.get().getVersion());
         return m;
     }
+
+    private Map<String, Object> mapSnapshot() {
+        Map<String, Object> m = ArisMapCache.get().snapshot();
+
+        List<String> sectionIds = new ArrayList<>();
+        List<String> routeIds = new ArrayList<>();
+        for (String lineId : LineManager.getAllLines().keySet()) {
+            LineConfig cfg =
+                    LineManager.getLine(lineId);
+            if (cfg == null) continue;
+            if (cfg.sections != null) sectionIds.addAll(cfg.sections.keySet());
+            if (cfg.routes != null) routeIds.addAll(cfg.routes.keySet());
+        }
+        m.put("sections", sectionIds);
+        m.put("routes", routeIds);
+        return m;
+    }
     
     private int findAspectAt(WorldServer world, BlockPos pos) {
-        for (String lineId : jp.apple.aris.ctc.config.LineManager.getAllLines().keySet()) {
-            Map<String, jp.apple.aris.ctc.state.SignalState> sigs =
-                    jp.apple.aris.ctc.state.LineStateManager.getSignals(lineId);
+        for (String lineId : LineManager.getAllLines().keySet()) {
+            Map<String, SignalState> sigs =
+                    LineStateManager.getSignals(lineId);
             if (sigs == null) continue;
-            for (jp.apple.aris.ctc.state.SignalState sig : sigs.values()) {
+            for (SignalState sig : sigs.values()) {
                 for (BlockPos sp : sig.getSignalPositions()) {
                     if (sp.equals(pos)) {
                         return sig.getCurrentAspect();
@@ -142,6 +163,8 @@ public class WebApiHandler implements HttpHandler {
         byte[] data = GSON.toJson(body).getBytes(StandardCharsets.UTF_8);
         ex.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
         ex.sendResponseHeaders(status, data.length);
-        try (OutputStream os = ex.getResponseBody()) { os.write(data); }
+        try (OutputStream os = ex.getResponseBody()) {
+            os.write(data);
+        }
     }
 }

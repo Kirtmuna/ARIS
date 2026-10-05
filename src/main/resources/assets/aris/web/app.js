@@ -5,6 +5,8 @@
     let camera = { x: 0, y: 0, scale: 1.5 };
     let rails = [];
     let signals = [];
+    let sectionsData = [];
+    let routesData = [];
     let dragging = false;
     let lastMouse = { x: 0, y: 0 };
 
@@ -47,8 +49,8 @@
         for (const poly of rails) {
             ctx.beginPath();
             for (let i = 0; i < poly.length; i++) {
-                const [x, y, z] = poly[i];
-                const [sx, sy] = worldToScreen(x, z);
+                const p = poly[i];
+                const [sx, sy] = worldToScreen(p[0], p[2]);
                 if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
             }
             ctx.stroke();
@@ -112,6 +114,378 @@
         draw();
     }, { passive: false });
 
+    const STORAGE_KEY = 'aris.tree.v1';
+
+    let treeState = {
+        sections: { folders: {}, assignments: {}, order: [] },
+        routes:   { folders: {}, assignments: {}, order: [] }
+    };
+    let selected = { list: null, id: null };
+
+    function loadTreeState() {
+        try {
+            const s = localStorage.getItem(STORAGE_KEY);
+            if (!s) return;
+            const p = JSON.parse(s);
+            if (p.sections) treeState.sections = p.sections;
+            if (p.routes)   treeState.routes   = p.routes;
+            for (const k of ['sections', 'routes']) {
+                const t = treeState[k];
+                if (!t.folders) t.folders = {};
+                if (!t.assignments) t.assignments = {};
+                if (!t.order) t.order = [];
+            }
+        } catch (e) { console.warn('tree load failed', e); }
+    }
+
+    function saveTreeState() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(treeState));
+        } catch (e) { console.warn('tree save failed', e); }
+    }
+
+    function syncItemsFromServer() {
+        syncList('sections', sectionsData);
+        syncList('routes',   routesData);
+        saveTreeState();
+    }
+
+    function syncList(listKey, serverItems) {
+        const t = treeState[listKey];
+        const set = new Set(serverItems);
+
+        for (const id of Object.keys(t.assignments)) {
+            if (!set.has(id)) {
+                delete t.assignments[id];
+                t.order = t.order.filter(x => x !== id);
+            }
+        }
+        for (const id of serverItems) {
+            if (!t.order.includes(id)) {
+                t.order.push(id);
+                t.assignments[id] = null;
+            }
+        }
+    }
+    
+    function renderList(listKey) {
+        const t = treeState[listKey];
+        const ulId = listKey === 'sections' ? 'sectionList' : 'routeList';
+        const ul = document.getElementById(ulId);
+        ul.innerHTML = '';
+
+        const flat = [];
+        function walk(parentId, depth) {
+            for (const id of t.order) {
+                const isFolder = !!t.folders[id];
+                const itemParent = isFolder
+                ? (t.folders[id].parent || null)
+                : (t.assignments[id] || null);
+                if (itemParent !== parentId) continue;
+
+                if (isFolder) {
+                    const expanded = t.folders[id].expanded !== false;
+                    flat.push({ type: 'folder', id, depth, expanded });
+                    if (expanded) walk(id, depth + 1);
+                } else {
+                    flat.push({ type: 'item', id, depth });
+                }
+            }
+        }
+        walk(null, 0);
+
+        for (const row of flat) {
+            const li = document.createElement('li');
+            li.dataset.type = row.type;
+            li.dataset.id = row.id;
+            li.dataset.list = listKey;
+            li.style.paddingLeft = (8 + row.depth * 16) + 'px';
+            li.draggable = true;
+
+            if (row.type === 'folder') {
+                li.classList.add('folder');
+                if (selected.list === listKey && selected.id === row.id) {
+                    li.classList.add('selected');
+                }
+                const arrow = document.createElement('span');
+                arrow.className = 'arrow';
+                arrow.textContent = row.expanded ? '▼' : '▶';
+                arrow.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    t.folders[row.id].expanded = !row.expanded;
+                    saveTreeState();
+                    renderList(listKey);
+                });
+                li.appendChild(arrow);
+
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = ' ' + (t.folders[row.id].name || row.id);
+                li.appendChild(nameSpan);
+
+                li.addEventListener('click', () => selectFolder(listKey, row.id));
+                
+                li.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    const cur = t.folders[row.id].name || row.id;
+                    const v = prompt('フォルダ名', cur);
+                    if (v == null) return;
+                    const trimmed = v.trim();
+                    if (!trimmed) return;
+                    t.folders[row.id].name = trimmed;
+                    saveTreeState();
+                    renderList(listKey);
+                    if (selected.list === listKey && selected.id === row.id) renderPanelTop();
+                });
+            } else {
+                li.classList.add('item');
+                if (selected.list === listKey && selected.id === row.id) {
+                    li.classList.add('selected');
+                }
+                li.textContent = row.id;
+                li.addEventListener('click', () => selectItem(listKey, row.id));
+            }
+
+            attachDragHandlers(li, listKey);
+            ul.appendChild(li);
+        }
+    }
+
+    let dragSrc = null; // { list, type, id }
+
+    function attachDragHandlers(li, listKey) {
+        li.addEventListener('dragstart', e => {
+            dragSrc = { list: listKey, type: li.dataset.type, id: li.dataset.id };
+            li.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', li.dataset.id);
+        });
+        li.addEventListener('dragend', () => {
+            li.classList.remove('dragging');
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        });
+        li.addEventListener('dragover', e => {
+            if (!dragSrc || dragSrc.list !== listKey) return;
+            if (dragSrc.id === li.dataset.id) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            li.classList.add('drag-over');
+        });
+        li.addEventListener('dragleave', () => {
+            li.classList.remove('drag-over');
+        });
+        li.addEventListener('drop', e => {
+            e.preventDefault();
+            li.classList.remove('drag-over');
+            if (!dragSrc || dragSrc.list !== listKey) return;
+            if (dragSrc.id === li.dataset.id) return;
+
+            const t = treeState[listKey];
+            const srcId = dragSrc.id;
+            const tgtId = li.dataset.id;
+            const tgtType = li.dataset.type;
+
+            if (dragSrc.type === 'folder' && isAncestor(t, srcId, tgtId)) return;
+
+            const rect = li.getBoundingClientRect();
+            const rel = (e.clientY - rect.top) / rect.height;
+
+            if (tgtType === 'folder' && rel > 0.25 && rel < 0.75) {
+                moveIntoFolder(t, srcId, tgtId);
+            } else {
+                const tgtParent = tgtType === 'folder'
+                ? (t.folders[tgtId].parent || null)
+                : (t.assignments[tgtId] || null);
+
+                if (rel <= 0.25) {
+                    moveAsSiblingBefore(t, srcId, tgtId, tgtParent);
+                } else {
+                    moveAsSiblingAfter(t, srcId, tgtId, tgtParent);
+                }
+            }
+            saveTreeState();
+            renderList(listKey);
+        });
+    }
+
+    function isAncestor(t, ancestorId, nodeId) {
+        let cur = t.assignments[nodeId] ?? (t.folders[nodeId] ? t.folders[nodeId].parent : null);
+        while (cur) {
+            if (cur === ancestorId) return true;
+            cur = t.folders[cur] ? (t.folders[cur].parent || null) : null;
+        }
+        return false;
+    }
+
+    function moveIntoFolder(t, srcId, folderId) {
+        t.order = t.order.filter(x => x !== srcId);
+        if (t.folders[srcId]) {
+            t.folders[srcId].parent = folderId;
+        } else {
+            t.assignments[srcId] = folderId;
+        }
+        const idx = t.order.indexOf(folderId);
+        if (idx >= 0) {
+            t.order.splice(idx + 1, 0, srcId);
+        } else {
+            t.order.push(srcId);
+        }
+    }
+
+    function moveAsSiblingBefore(t, srcId, tgtId, parentId) {
+        t.order = t.order.filter(x => x !== srcId);
+        if (t.folders[srcId]) {
+            t.folders[srcId].parent = parentId;
+        } else {
+            t.assignments[srcId] = parentId;
+        }
+        const idx = t.order.indexOf(tgtId);
+        if (idx >= 0) {
+            t.order.splice(idx, 0, srcId);
+        } else {
+            t.order.push(srcId);
+        }
+    }
+
+    function moveAsSiblingAfter(t, srcId, tgtId, parentId) {
+        t.order = t.order.filter(x => x !== srcId);
+        if (t.folders[srcId]) {
+            t.folders[srcId].parent = parentId;
+        } else {
+            t.assignments[srcId] = parentId;
+        }
+        const idx = t.order.indexOf(tgtId);
+        if (idx >= 0) {
+            t.order.splice(idx + 1, 0, srcId);
+        } else {
+            t.order.push(srcId);
+        }
+    }
+    
+    function selectItem(listKey, id) {
+        selected = { list: listKey, id };
+        renderList(listKey);
+        renderPanelTop();
+    }
+
+    function selectFolder(listKey, id) {
+        selected = { list: listKey, id };
+        renderList(listKey);
+        renderPanelTop();
+    }
+
+    function renderPanelTop() {
+        const ph = document.getElementById('panelTopPlaceholder');
+        const content = document.getElementById('panelTopContent');
+
+        if (!selected.id) {
+            ph.style.display = '';
+            content.style.display = 'none';
+            return;
+        }
+        ph.style.display = 'none';
+        content.style.display = '';
+
+        const t = treeState[selected.list];
+        const isFolder = !!t.folders[selected.id];
+
+        if (isFolder) {
+            const name = t.folders[selected.id].name || selected.id;
+            content.innerHTML = `
+                <h3>フォルダ</h3>
+                <div class="field"><label>名前</label><div class="value">${escapeHtml(name)}</div></div>
+                <div class="field"><label>ID</label><div class="value">${escapeHtml(selected.id)}</div></div>
+                <div class="dangerZone"><button id="btnDeleteItem">このフォルダを削除</button></div>
+            `;
+            document.getElementById('btnDeleteItem').addEventListener('click', () => {
+                if (!confirm('このフォルダを削除しますか？')) return;
+                deleteFolder(selected.list, selected.id);
+            });
+        } else {
+            content.innerHTML = `
+                <h3>${selected.list === 'sections' ? '区間' : '進路'}</h3>
+                <div class="field"><label>ID</label><div class="value">${escapeHtml(selected.id)}</div></div>
+                <div class="field"><label>編集</label><div class="value" style="color:#888;">(未実装)</div></div>
+                <div class="dangerZone"><button id="btnDeleteItem" disabled>この項目を削除 (未実装)</button></div>
+            `;
+        }
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[c]));
+    }
+
+    function deleteFolder(listKey, folderId) {
+        const t = treeState[listKey];
+        const parentId = t.folders[folderId] ? (t.folders[folderId].parent || null) : null;
+        for (const id of t.order) {
+            if (t.folders[id] && t.folders[id].parent === folderId) {
+                t.folders[id].parent = parentId;
+            }
+            if (t.assignments[id] === folderId) {
+                t.assignments[id] = parentId;
+            }
+        }
+        delete t.folders[folderId];
+        t.order = t.order.filter(x => x !== folderId);
+        if (selected.id === folderId) {
+            selected = { list: null, id: null };
+            renderPanelTop();
+        }
+        saveTreeState();
+        renderList(listKey);
+    }
+    
+    let folderCounter = 0;
+    function newFolderId() {
+        return 'f_' + Date.now() + '_' + (folderCounter++);
+    }
+
+    document.querySelectorAll('.btnFolder').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const listKey = btn.dataset.list;
+            const box = document.getElementById('folderCreate-' + listKey);
+            const visible = box.style.display !== 'none';
+            box.style.display = visible ? 'none' : '';
+            if (!visible) box.querySelector('input').focus();
+        });
+    });
+
+    document.querySelectorAll('.btnFolderCreate').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const listKey = btn.dataset.list;
+            const box = document.getElementById('folderCreate-' + listKey);
+            const input = box.querySelector('input');
+            const name = input.value.trim();
+            if (!name) return;
+
+            const id = newFolderId();
+            const t = treeState[listKey];
+            t.folders[id] = { name, parent: null, expanded: true };
+            t.order.push(id);
+            saveTreeState();
+            input.value = '';
+            box.style.display = 'none';
+            renderList(listKey);
+        });
+    });
+    
+    document.querySelectorAll('.folderCreate input').forEach(inp => {
+        inp.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                const listKey = inp.parentElement.id.replace('folderCreate-', '');
+                document.querySelector(`.btnFolderCreate[data-list="${listKey}"]`).click();
+            }
+        });
+    });
+    
+    document.querySelectorAll('.btnAdd').forEach(btn => {
+        btn.addEventListener('click', () => {
+            alert('Add 機能は未実装です。\n(今後、区間/進路を新規作成するエンドポイントを追加予定)');
+        });
+    });
+    
     let currentVersion = -1;
 
     async function pollVersion() {
@@ -132,13 +506,20 @@
             const data = await r.json();
             rails = data.rails || [];
             signals = data.signals || [];
+            sectionsData = data.sections || [];
+            routesData = data.routes || [];
+            syncItemsFromServer();
+            renderList('sections');
+            renderList('routes');
             draw();
         } catch (e) { console.error(e); }
     }
 
     document.getElementById('btnRefresh').addEventListener('click', fetchMap);
 
+    loadTreeState();
+    renderPanelTop();
     window.addEventListener('resize', resize);
     resize();
-    pollVersion();
+    fetchMap().then(() => pollVersion());
 })();

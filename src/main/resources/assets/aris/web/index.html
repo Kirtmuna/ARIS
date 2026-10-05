@@ -16,24 +16,37 @@
     </div>
     <aside id="side">
         <div class="panel" id="panelTop">
-            <div class="placeholder">---</div>
+            <div class="placeholder" id="panelTopPlaceholder">---</div>
+            <div id="panelTopContent" style="display:none;"></div>
         </div>
         <div id="panelBottom">
-            <div class="listBox">
+            <div class="listBox" data-list="sections">
                 <div class="listHeader">
                     <span>区間</span>
-                    <button disabled>Add</button>
-                    <button disabled>Folder</button>
+                    <button class="btnAdd" data-list="sections">Add</button>
+                    <button class="btnFolder" data-list="sections">Folder</button>
                 </div>
-                <ul id="sectionList"></ul>
+                <div class="folderCreate" id="folderCreate-sections" style="display:none;">
+                    <input type="text" class="folderNameInput" placeholder="フォルダ名">
+                    <div class="folderCreateActions">
+                        <button class="btnFolderCreate" data-list="sections">Create</button>
+                    </div>
+                </div>
+                <ul id="sectionList" class="treeList"></ul>
             </div>
-            <div class="listBox">
+            <div class="listBox" data-list="routes">
                 <div class="listHeader">
                     <span>進路</span>
-                    <button disabled>Add</button>
-                    <button disabled>Folder</button>
+                    <button class="btnAdd" data-list="routes">Add</button>
+                    <button class="btnFolder" data-list="routes">Folder</button>
                 </div>
-                <ul id="routeList"></ul>
+                <div class="folderCreate" id="folderCreate-routes" style="display:none;">
+                    <input type="text" class="folderNameInput" placeholder="フォルダ名">
+                    <div class="folderCreateActions">
+                        <button class="btnFolderCreate" data-list="routes">Create</button>
+                    </div>
+                </div>
+                <ul id="routeList" class="treeList"></ul>
             </div>
         </div>
     </aside>
