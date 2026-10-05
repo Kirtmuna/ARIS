@@ -28,8 +28,6 @@ public class ArisCore {
         LOGGER.info("Loaded: {}",Tags.MOD_NAME);
 
         ArisNetwork.init();
-
-        Object touch = ArisItem.RAIL_REGISTER_TOOL;
         
         File currentModFile = event.getSourceFile();
         File modsDirectory = currentModFile.getParentFile();
