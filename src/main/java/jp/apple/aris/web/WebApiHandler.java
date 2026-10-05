@@ -124,15 +124,18 @@ public class WebApiHandler implements HttpHandler {
 
         List<String> sectionIds = new ArrayList<>();
         List<String> routeIds = new ArrayList<>();
+        Map<String, Object> lineConfigs = new HashMap<>();
+
         for (String lineId : LineManager.getAllLines().keySet()) {
-            LineConfig cfg =
-                    LineManager.getLine(lineId);
+            LineConfig cfg = LineManager.getLine(lineId);
             if (cfg == null) continue;
             if (cfg.sections != null) sectionIds.addAll(cfg.sections.keySet());
             if (cfg.routes != null) routeIds.addAll(cfg.routes.keySet());
+            lineConfigs.put(lineId, cfg);
         }
         m.put("sections", sectionIds);
         m.put("routes", routeIds);
+        m.put("lineConfigs", lineConfigs);
         return m;
     }
     

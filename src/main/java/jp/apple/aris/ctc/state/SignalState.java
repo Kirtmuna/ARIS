@@ -1,7 +1,6 @@
 package jp.apple.aris.ctc.state;
 
 import jp.apple.aris.common.util.PositionUtil;
-import jp.apple.aris.ctc.config.LineConfig;
 import jp.apple.aris.ctc.enums.SignalType;
 import jp.ngt.rtm.electric.TileEntitySignal;
 import net.minecraft.tileentity.TileEntity;
@@ -10,7 +9,6 @@ import net.minecraft.world.World;
 
 public class SignalState {
     private final String signalId;
-    private final LineConfig.SignalConfig config;
     // 全信号機座標を入れる
     private final BlockPos[] signalPositions;
     // 現在の信号レベルの状態
@@ -22,11 +20,10 @@ public class SignalState {
     // 区間に扱われているかどうかのフラグ
     private boolean isControlled = true;
     
-    public SignalState(String id, LineConfig.SignalConfig config) {
-        this.signalId = id;
-        this.config = config;
-        this.signalPositions = PositionUtil.toBlockPosArray(config.positions);
-        this.signalType = SignalType.fromKey(config.type);
+    public SignalState(String signalId, int[] pos, String type) {
+        this.signalId = signalId;
+        this.signalPositions = new BlockPos[]{ PositionUtil.toBlockPos(pos) };
+        this.signalType = SignalType.fromKey(type);
     }
     /**
      * 現示の設定、RTM信号の同期
@@ -64,7 +61,6 @@ public class SignalState {
     }
     // ゲッター
     public String getSignalId() { return signalId; }
-    public LineConfig.SignalConfig getConfig() { return config; }
     public BlockPos[] getSignalPositions() { return signalPositions; }
     public int getCurrentLevel() { return currentSignalLevel; }
     public SignalType getSignalType() { return signalType; }

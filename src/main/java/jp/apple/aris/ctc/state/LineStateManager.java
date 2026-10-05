@@ -26,70 +26,59 @@ public class LineStateManager {
         for (Map.Entry<String, LineConfig> entry : LineManager.getAllLines().entrySet()) {
             String lineId = entry.getKey();
             LineConfig config = entry.getValue();
-            
+
             ArisCore.LOGGER.info("ARIS: 路線をインスタンス化: {}", lineId);
-            
+
             Map<String, RailState> railMap = new HashMap<>();
             Map<String, SignalState> signalMap = new HashMap<>();
             Map<String, SectionState> sectionMap = new HashMap<>();
             Map<String, SwitchState> pointMap = new HashMap<>();
             Set<String> usedAsStart = new HashSet<>();
             Map<String, RouteState> routeMap = new HashMap<>();
-            
-            // 1. レールのインスタンス化
-            if (config.rails != null) {
-                for (Map.Entry<String, LineConfig.RailConfig> railEntry : config.rails.entrySet()) {
-                    String railId = railEntry.getKey();
-                    
-                    RailState railState = new RailState(lineId, railId, railEntry.getValue());
-                    railMap.put(railId, railState);
-                }
-            }
-            // 2. 信号機のインスタンス化
+
+            // 1. 信号
             if (config.signals != null) {
-                for (Map.Entry<String, LineConfig.SignalConfig> sigEntry : config.signals.entrySet()) {
-                    String sigId = sigEntry.getKey();
-                    
-                    SignalState signalState = new SignalState(sigId, sigEntry.getValue());
-                    signalMap.put(sigId, signalState);
+                for (Map.Entry<String, LineConfig.SignalConfig> e : config.signals.entrySet()) {
+                    String key = e.getKey();
+                    int[] pos = parseKey(key);
+                    if (pos == null) {
+                        ArisCore.LOGGER.warn("ARIS: 信号 '{}' の座標キーが不正です", key);
+                        continue;
+                    }
+                    signalMap.put(key, new SignalState(key, pos, e.getValue().type));
                 }
             }
-            // 3. ポイント(区間より先に作る)
+            // 2. 分岐
             if (config.switches != null) {
                 for (Map.Entry<String, LineConfig.SwitchConfig> swEntry : config.switches.entrySet()) {
                     String switchId = swEntry.getKey();
                     LineConfig.SwitchConfig sc = swEntry.getValue();
-
-                    RailState r = railMap.get(sc.rail);
-                    if (r == null) {
-                        ArisCore.LOGGER.warn("ARIS: ポイント '{}' の rail '{}' が見つかりません", switchId, sc.rail);
-                    }
-
+                    String railKey = key(sc.pos);
+                    RailState r = railMap.computeIfAbsent(railKey,
+                            k -> new RailState(railKey, sc.pos));
                     if (sc.points != null) {
                         for (Map.Entry<String, LineConfig.SwitchConfig.PointConfig> ptEntry : sc.points.entrySet()) {
                             String pointKey = switchId + "." + ptEntry.getKey();
                             LineConfig.SwitchConfig.PointConfig pc = ptEntry.getValue();
-
                             pointMap.put(pointKey, new SwitchState(pointKey, switchId, r, pc.index,
                                     signalMap.get(pc.nSignal), signalMap.get(pc.rSignal)));
                         }
                     }
                 }
             }
-            // 3. 区間のインスタンス化
+            // 3. 区間
             if (config.sections != null) {
                 for (Map.Entry<String, LineConfig.SectionConfig> secEntry : config.sections.entrySet()) {
                     String secId = secEntry.getKey();
                     LineConfig.SectionConfig secConfig = secEntry.getValue();
-                    
+
                     List<RailState> targetRails = new ArrayList<>();
-                    
-                    if (secConfig.sectionRails != null) {
-                        for (String railId : secConfig.sectionRails) {
-                            RailState rState = railMap.get(railId);
-                            if (rState != null) {
-                                targetRails.add(rState);
-                            }
+                    if (secConfig.rails != null) {
+                        for (int[] pos : secConfig.rails) {
+                            String railKey = key(pos);
+                            RailState rState = railMap.computeIfAbsent(railKey,
+                                    k -> new RailState(railKey, pos));
+                            targetRails.add(rState);
                         }
                     }
 
@@ -99,7 +88,8 @@ public class LineStateManager {
                     if (endSig == null && secConfig.endSignal != null) {
                         endPt = pointMap.get(secConfig.endSignal);
                         if (endPt == null) {
-                            ArisCore.LOGGER.warn("ARIS: 区間 '{}' の endSignal '{}' は信号にもポイントにも見つかりません", secId, secConfig.endSignal);
+                            ArisCore.LOGGER.warn("ARIS: 区間 '{}' の endSignal '{}' は信号にもポイントにも見つかりません",
+                                    secId, secConfig.endSignal);
                         }
                     } else if (endSig != null && pointMap.containsKey(secConfig.endSignal)) {
                         ArisCore.LOGGER.warn("ARIS: ID '{}' が信号とポイントで重複しています。信号を優先します", secConfig.endSignal);
@@ -111,15 +101,15 @@ public class LineStateManager {
                     }
                 }
             }
-            // 4. 進路のインスタンス化
+            // 4. 進路
             if (config.routes != null) {
                 for (Map.Entry<String, LineConfig.RouteConfig> rtEntry : config.routes.entrySet()) {
                     String routeId = rtEntry.getKey();
                     LineConfig.RouteConfig rc = rtEntry.getValue();
 
                     List<SectionState> sections = new ArrayList<>();
-                    if (rc.sectionId != null) {
-                        for (String secId : rc.sectionId) {
+                    if (rc.sections != null) {
+                        for (String secId : rc.sections) {
                             SectionState s = sectionMap.get(secId);
                             if (s == null) {
                                 ArisCore.LOGGER.warn("ARIS: 進路 '{}' のsection '{}' が見つかりません", routeId, secId);
@@ -174,11 +164,41 @@ public class LineStateManager {
         }
     }
     //ゲッター
-    public static Map<String, SectionState> getSections(String lineId) { return LINE_SECTIONS.get(lineId); }
-    public static Map<String, RailState> getRails(String lineId) { return LINE_RAILS.get(lineId); }
-    public static Map<String, SignalState> getSignals(String lineId) { return LINE_SIGNALS.get(lineId); }
+    public static Map<String, SectionState> getSections(String lineId) {
+        return LINE_SECTIONS.get(lineId);
+    }
 
-    public static Map<String, Map<String, SectionState>> getAllLineSections() { return LINE_SECTIONS; }
-    public static Map<String, SwitchState> getPoints(String lineId) { return LINE_POINTS.get(lineId); }
-    public static Map<String, RouteState> getRoutes(String lineId) { return LINE_ROUTES.get(lineId); }
+    public static Map<String, RailState> getRails(String lineId) {
+        return LINE_RAILS.get(lineId);
+    }
+
+    public static Map<String, SignalState> getSignals(String lineId) {
+        return LINE_SIGNALS.get(lineId);
+    }
+
+    public static Map<String, Map<String, SectionState>> getAllLineSections() {
+        return LINE_SECTIONS;
+    }
+
+    public static Map<String, SwitchState> getPoints(String lineId) {
+        return LINE_POINTS.get(lineId);
+    }
+
+    public static Map<String, RouteState> getRoutes(String lineId) {
+        return LINE_ROUTES.get(lineId);
+    }
+
+    private static String key(int[] pos) {
+        return pos[0] + "," + pos[1] + "," + pos[2];
+    }
+
+    private static int[] parseKey(String key) {
+        String[] p = key.split(",");
+        if (p.length != 3) return null;
+        try {
+            return new int[]{Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2])};
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
 }

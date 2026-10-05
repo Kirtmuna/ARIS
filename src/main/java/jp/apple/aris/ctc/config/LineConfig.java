@@ -4,42 +4,35 @@ import java.util.Map;
 
 public class LineConfig {
     public String name; // LineName
-    
-    public Map<String, RailConfig> rails; // 線路
     public Map<String, SignalConfig> signals; // 信号
-    public Map<String, SectionConfig> sections; // 区間
     public Map<String, SwitchConfig> switches; // ポイント
+    public Map<String, SectionConfig> sections; // 区間
     public Map<String, RouteConfig> routes; // 進路
     
-    // 線路-config
-    public static class RailConfig {
-        public int[] position; // RailCoreの座標
-    }
     // 信号-config
     public static class SignalConfig {
-        public int[][] positions; // 座標-二重配列 [[x,y,z], [x,y,z]...]
-        public String type;           // 信号の灯数-記述はInt
-    }
-    // 区間-config
-    public static class SectionConfig {
-        public String[] sectionRails; // その区間とするレールのID
-        public String startSignal;    // 区間開始信号機のID
-        public String endSignal;      // 区間終了信号機のID
+        public String type;
     }
     // ポイント-config
     public static class SwitchConfig {
-        public String rail;
+        public int[] pos;
         public Map<String, PointConfig> points;
 
         public static class PointConfig {
-            public int index;      // SwitchType.getPoints()配列の何番目に対応するか
-            public String nSignal; // NORMAL時の信号ID
-            public String rSignal; // REVERSE時の信号ID
+            public int index;
+            public String nSignal;
+            public String rSignal;
         }
+    }
+    // 区間-config
+    public static class SectionConfig {
+        public int[][] rails;
+        public String startSignal;
+        public String endSignal;
     }
     // 進路-config
     public static class RouteConfig {
-        public String[] sectionId;
+        public String[] sections;
         public RouteSwitchConfig route;
 
         public static class RouteSwitchConfig {
