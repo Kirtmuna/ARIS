@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <title>ARIS</title>
+    <link href="/style.css" rel="stylesheet">
+</head>
+<body>
+<header>
+    <span class="title">ARIS</span>
+    <button id="btnRefresh">更新</button>
+</header>
+<main>
+    <div id="mapWrap">
+        <canvas id="map"></canvas>
+    </div>
+    <aside id="side">
+        <div class="panel" id="panelTop">
+            <div class="placeholder">---</div>
+        </div>
+        <div id="panelBottom">
+            <div class="listBox">
+                <div class="listHeader">
+                    <span>区間</span>
+                    <button disabled>Add</button>
+                    <button disabled>Folder</button>
+                </div>
+                <ul id="sectionList"></ul>
+            </div>
+            <div class="listBox">
+                <div class="listHeader">
+                    <span>進路</span>
+                    <button disabled>Add</button>
+                    <button disabled>Folder</button>
+                </div>
+                <ul id="routeList"></ul>
+            </div>
+        </div>
+    </aside>
+</main>
+<script src="/app.js"></script>
+</body>
+</html>
