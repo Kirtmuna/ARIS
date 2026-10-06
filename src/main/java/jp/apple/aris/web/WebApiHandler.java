@@ -178,20 +178,14 @@ public class WebApiHandler implements HttpHandler {
             lineConfigs.put(lineId, cfg);
             
             if (cfg.switches == null) continue;
-            Map<String, jp.apple.aris.ctc.state.SwitchState> pointMap =
-                    LineStateManager.getPoints(lineId);
-            if (pointMap == null) continue;
 
-            for (String switchId : cfg.switches.keySet()) {
-                LineConfig.SwitchConfig sc = cfg.switches.get(switchId);
-                if (sc == null || sc.pos == null) continue;
-                
-                if (world == null || !world.isBlockLoaded(
-                        new BlockPos(sc.pos[0], sc.pos[1], sc.pos[2]))) {
-                    continue;
-                }
-                TileEntity te = world.getTileEntity(
-                        new BlockPos(sc.pos[0], sc.pos[1], sc.pos[2]));
+            for (String switchKey : cfg.switches.keySet()) {
+                int[] swPos = parseCoordKey(switchKey);
+                if (swPos == null) continue;
+
+                BlockPos swBlockPos = new BlockPos(swPos[0], swPos[1], swPos[2]);
+                if (world == null || !world.isBlockLoaded(swBlockPos)) continue;
+                TileEntity te = world.getTileEntity(swBlockPos);
                 if (!(te instanceof TileEntityLargeRailSwitchCore)) continue;
 
                 TileEntityLargeRailSwitchCore core =
@@ -205,7 +199,8 @@ public class WebApiHandler implements HttpHandler {
                     Point p = points[i];
                     if (p == null || p.rpRoot == null) continue;
                     Map<String, Object> pm = new HashMap<>();
-                    pm.put("switchId", switchId);
+                    pm.put("switchId", switchKey);
+                    pm.put("pointKey", "P" + i);
                     pm.put("index", i);
                     pm.put("pos", new double[]{
                             p.rpRoot.posX,
@@ -277,6 +272,20 @@ public class WebApiHandler implements HttpHandler {
             }
         }
         return -1;
+    }
+
+    private int[] parseCoordKey(String key) {
+        String[] parts = key.split(",");
+        if (parts.length != 3) return null;
+        try {
+            return new int[]{
+                    Integer.parseInt(parts[0].trim()),
+                    Integer.parseInt(parts[1].trim()),
+                    Integer.parseInt(parts[2].trim())
+            };
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private Map<String, Object> err(String msg) {

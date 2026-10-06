@@ -729,10 +729,14 @@
             for (const lineId of Object.keys(lineConfigs)) {
                 const cfg = lineConfigs[lineId];
                 if (!cfg || !cfg.switches) continue;
-                for (const swName of Object.keys(cfg.switches)) {
-                    const sw = cfg.switches[swName];
-                    if (!sw || !sw.pos) continue;
-                    switches.push({ name: swName, pos: sw.pos, lineId });
+                for (const swKey of Object.keys(cfg.switches)) {
+                    const parts = swKey.split(',');
+                    if (parts.length !== 3) continue;
+                    const sx = parseInt(parts[0], 10);
+                    const sy = parseInt(parts[1], 10);
+                    const sz = parseInt(parts[2], 10);
+                    if (isNaN(sx) || isNaN(sy) || isNaN(sz)) continue;
+                    switches.push({ key: swKey, pos: [sx, sy, sz], lineId });
                 }
             }
 

@@ -15,11 +15,9 @@ public class LineConfig {
     }
     // ポイント-config
     public static class SwitchConfig {
-        public int[] pos;
         public Map<String, PointConfig> points;
 
         public static class PointConfig {
-            public int index;
             public String nSignal;
             public String rSignal;
         }

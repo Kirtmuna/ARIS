@@ -51,16 +51,26 @@ public class LineStateManager {
             // 2. 分岐
             if (config.switches != null) {
                 for (Map.Entry<String, LineConfig.SwitchConfig> swEntry : config.switches.entrySet()) {
-                    String switchId = swEntry.getKey();
+                    String switchKey = swEntry.getKey();
                     LineConfig.SwitchConfig sc = swEntry.getValue();
-                    String railKey = key(sc.pos);
-                    RailState r = railMap.computeIfAbsent(railKey,
-                            k -> new RailState(railKey, sc.pos));
+                    int[] swPos = parseKey(switchKey);
+                    if (swPos == null) {
+                        ArisCore.LOGGER.warn("ARIS: スイッチ '{}' の座標キーが不正です", switchKey);
+                        continue;
+                    }
+                    RailState r = railMap.computeIfAbsent(switchKey,
+                            k -> new RailState(switchKey, swPos));
                     if (sc.points != null) {
                         for (Map.Entry<String, LineConfig.SwitchConfig.PointConfig> ptEntry : sc.points.entrySet()) {
-                            String pointKey = switchId + "." + ptEntry.getKey();
+                            String pKey = ptEntry.getKey();
+                            String pointKey = switchKey + "." + pKey;
+                            int index = parsePointIndex(pKey);
+                            if (index < 0) {
+                                ArisCore.LOGGER.warn("ARIS: ポイントキー '{}' の形式が不正です (P<n> である必要があります)", pKey);
+                                continue;
+                            }
                             LineConfig.SwitchConfig.PointConfig pc = ptEntry.getValue();
-                            pointMap.put(pointKey, new SwitchState(pointKey, switchId, r, pc.index,
+                            pointMap.put(pointKey, new SwitchState(pointKey, switchKey, r, index,
                                     signalMap.get(pc.nSignal), signalMap.get(pc.rSignal)));
                         }
                     }
@@ -199,6 +209,14 @@ public class LineStateManager {
             return new int[]{Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2])};
         } catch (NumberFormatException e) {
             return null;
+        }
+    }
+    private static int parsePointIndex(String pKey) {
+        if (pKey == null || pKey.length() < 2 || pKey.charAt(0) != 'P') return -1;
+        try {
+            return Integer.parseInt(pKey.substring(1));
+        } catch (NumberFormatException e) {
+            return -1;
         }
     }
 }
