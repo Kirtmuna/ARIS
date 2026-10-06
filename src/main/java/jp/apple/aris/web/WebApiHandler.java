@@ -23,10 +23,7 @@ import net.minecraftforge.fml.common.FMLCommonHandler;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class WebApiHandler implements HttpHandler {
     private static final Gson GSON = new Gson();
@@ -177,9 +174,14 @@ public class WebApiHandler implements HttpHandler {
             if (cfg.routes != null) routeIds.addAll(cfg.routes.keySet());
             lineConfigs.put(lineId, cfg);
             
-            if (cfg.switches == null) continue;
+            if (cfg.switches == null) cfg.switches = new HashMap<>();
 
-            for (String switchKey : cfg.switches.keySet()) {
+            Set<String> handledKeys = new LinkedHashSet<>(cfg.switches.keySet());
+            for (Map<String, Object> sw : ArisMapCache.get().getSwitchKeys()) {
+                handledKeys.add((String) sw.get("key"));
+            }
+
+            for (String switchKey : handledKeys) {
                 int[] swPos = parseCoordKey(switchKey);
                 if (swPos == null) continue;
 

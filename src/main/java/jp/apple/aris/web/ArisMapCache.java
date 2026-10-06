@@ -3,9 +3,15 @@ package jp.apple.aris.web;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import jp.apple.aris.ArisCore;
+import jp.apple.aris.ctc.config.LineManager;
+import jp.apple.aris.ctc.state.LineStateManager;
+import jp.apple.aris.ctc.state.SignalState;
+import jp.apple.aris.util.ArisDir;
 import jp.ngt.rtm.electric.TileEntitySignal;
 import jp.ngt.rtm.rail.TileEntityLargeRailCore;
+import jp.ngt.rtm.rail.TileEntityLargeRailSwitchCore;
 import jp.ngt.rtm.rail.util.RailMap;
+import jp.ngt.rtm.rail.util.SwitchType;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
@@ -28,10 +34,33 @@ public class ArisMapCache {
     // signals
     private final Map<String, double[]> signals = new LinkedHashMap<>();
     private final Map<String, Integer> signalAspects = new HashMap<>();
+    // switches
+    private final Map<String, SwitchEntry> switches = new LinkedHashMap<>();
+    public static class SwitchEntry {
+        public double[] pos;
+        public int pointCount;
+        public SwitchEntry() {}
+        public SwitchEntry(double[] pos, int pointCount) {
+            this.pos = pos;
+            this.pointCount = pointCount;
+        }
+    }
     
     private int version = 0;
 
     public synchronized int getVersion() { return version; }
+    
+    public synchronized List<Map<String, Object>> getSwitchKeys() {
+        List<Map<String, Object>> list = new ArrayList<>();
+        for (Map.Entry<String, SwitchEntry> e : switches.entrySet()) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("key", e.getKey());
+            m.put("pos", e.getValue().pos);
+            m.put("pointCount", e.getValue().pointCount);
+            list.add(m);
+        }
+        return list;
+    }
 
     public synchronized Map<String, Object> snapshot() {
         Map<String, Object> m = new HashMap<>();
@@ -55,6 +84,16 @@ public class ArisMapCache {
             sigs.add(s);
         }
         m.put("signals", sigs);
+
+        List<Map<String, Object>> sws = new ArrayList<>();
+        for (Map.Entry<String, SwitchEntry> e : switches.entrySet()) {
+            Map<String, Object> s = new HashMap<>();
+            s.put("key", e.getKey());
+            s.put("pos", e.getValue().pos);
+            s.put("pointCount", e.getValue().pointCount);
+            sws.add(s);
+        }
+        m.put("switches", sws);
         return m;
     }
 
@@ -63,10 +102,50 @@ public class ArisMapCache {
 
         Set<String> scannedRailKeys = new HashSet<>();
         Set<String> scannedSignalKeys = new HashSet<>();
+        Set<String> scannedSwitchKeys = new HashSet<>();
 
         List<TileEntity> tes = new ArrayList<>(world.loadedTileEntityList);
         for (TileEntity te : tes) {
-            if (te instanceof TileEntityLargeRailCore) {
+            if (te instanceof TileEntityLargeRailSwitchCore) {
+                BlockPos pos = te.getPos();
+                String key = pos.getX() + "," + pos.getY() + "," + pos.getZ();
+                scannedSwitchKeys.add(key);
+                scannedRailKeys.add(key);
+
+                TileEntityLargeRailSwitchCore core = (TileEntityLargeRailSwitchCore) te;
+                SwitchType st = core.getSwitch();
+                int pointCount = st != null && st.getPoints() != null ? st.getPoints().length : 0;
+
+                SwitchEntry prev = switches.get(key);
+                if (prev == null || prev.pointCount != pointCount) {
+                    switches.put(key, new SwitchEntry(
+                            new double[]{pos.getX(), pos.getY(), pos.getZ()},
+                            pointCount));
+                    changed = true;
+                }
+                
+                List<List<double[]>> polys = new ArrayList<>();
+                RailMap[] maps = core.getAllRailMaps();
+                if (maps != null) {
+                    for (RailMap rm : maps) {
+                        if (rm == null) continue;
+                        int max = (int) (rm.getLength() * 2.0);
+                        if (max <= 0) continue;
+                        List<double[]> poly = new ArrayList<>();
+                        for (int i = 0; i <= max; i++) {
+                            double[] p = rm.getRailPos(max, i);
+                            double h = rm.getRailHeight(max, i);
+                            poly.add(new double[]{p[1], h, p[0]});
+                        }
+                        polys.add(poly);
+                    }
+                }
+                List<List<double[]>> prevR = rails.get(key);
+                if (!deepEquals(prevR, polys)) {
+                    rails.put(key, polys);
+                    changed = true;
+                }
+            } else if (te instanceof TileEntityLargeRailCore) {
                 TileEntityLargeRailCore core = (TileEntityLargeRailCore) te;
                 BlockPos pos = te.getPos();
                 String key = pos.getX() + "," + pos.getY() + "," + pos.getZ();
@@ -88,7 +167,6 @@ public class ArisMapCache {
                         polys.add(poly);
                     }
                 }
-
                 List<List<double[]>> prev = rails.get(key);
                 if (!deepEquals(prev, polys)) {
                     rails.put(key, polys);
@@ -128,13 +206,23 @@ public class ArisMapCache {
                 changed = true;
             }
         }
+        Iterator<Map.Entry<String, SwitchEntry>> swIt = switches.entrySet().iterator();
+        while (swIt.hasNext()) {
+            Map.Entry<String, SwitchEntry> e = swIt.next();
+            if (scannedSwitchKeys.contains(e.getKey())) continue;
+            BlockPos pos = parseKey(e.getKey());
+            if (pos != null && world.isBlockLoaded(pos)) {
+                swIt.remove();
+                changed = true;
+            }
+        }
 
         // 現示の反映
-        for (String lineId : jp.apple.aris.ctc.config.LineManager.getAllLines().keySet()) {
-            Map<String, jp.apple.aris.ctc.state.SignalState> sigs =
-                    jp.apple.aris.ctc.state.LineStateManager.getSignals(lineId);
+        for (String lineId : LineManager.getAllLines().keySet()) {
+            Map<String, SignalState> sigs =
+                    LineStateManager.getSignals(lineId);
             if (sigs == null) continue;
-            for (jp.apple.aris.ctc.state.SignalState sig : sigs.values()) {
+            for (SignalState sig : sigs.values()) {
                 for (BlockPos sp : sig.getSignalPositions()) {
                     String key = sp.getX() + "," + sp.getY() + "," + sp.getZ();
                     Integer prev = signalAspects.get(key);
@@ -178,7 +266,7 @@ public class ArisMapCache {
     }
     
     private File getCacheFile() {
-        File dir = new File(jp.apple.aris.util.ArisDir.lineDirectory.getParentFile(), "cache");
+        File dir = new File(ArisDir.lineDirectory.getParentFile(), "cache");
         if (!dir.exists()) dir.mkdirs();
         return new File(dir, "map.json");
     }
@@ -193,6 +281,7 @@ public class ArisMapCache {
             rails.clear();
             signals.clear();
             signalAspects.clear();
+            switches.clear();
 
             Object railsObj = data.get("rails");
             if (railsObj instanceof Map) {
@@ -213,8 +302,20 @@ public class ArisMapCache {
                     }
                 }
             }
-            ArisCore.LOGGER.info("ARIS: Map cache loaded ({} rails, {} signals)",
-                    rails.size(), signals.size());
+            Object swObj = data.get("switches");
+            if (swObj instanceof List) {
+                for (Object o : (List<?>) swObj) {
+                    Map<String, Object> m = (Map<String, Object>) o;
+                    String key = (String) m.get("key");
+                    List<Double> p = (List<Double>) m.get("pos");
+                    double[] arr = {p.get(0), p.get(1), p.get(2)};
+                    int pc = m.containsKey("pointCount")
+                            ? ((Number) m.get("pointCount")).intValue() : 0;
+                    switches.put(key, new SwitchEntry(arr, pc));
+                }
+            }
+            ArisCore.LOGGER.info("ARIS: Map cache loaded ({} rails, {} signals, {} switches)",
+                    rails.size(), signals.size(), switches.size());
         } catch (Exception e) {
             ArisCore.LOGGER.error("ARIS: Failed to load map cache", e);
         }
@@ -238,6 +339,7 @@ public class ArisMapCache {
         try (Writer w = new OutputStreamWriter(new FileOutputStream(getCacheFile()), StandardCharsets.UTF_8)) {
             Map<String, Object> data = new HashMap<>();
             data.put("rails", rails);
+
             List<Map<String, Object>> sigs = new ArrayList<>();
             for (Map.Entry<String, double[]> e : signals.entrySet()) {
                 Map<String, Object> m = new HashMap<>();
@@ -247,6 +349,17 @@ public class ArisMapCache {
                 sigs.add(m);
             }
             data.put("signals", sigs);
+
+            List<Map<String, Object>> sws = new ArrayList<>();
+            for (Map.Entry<String, SwitchEntry> e : switches.entrySet()) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("key", e.getKey());
+                m.put("pos", e.getValue().pos);
+                m.put("pointCount", e.getValue().pointCount);
+                sws.add(m);
+            }
+            data.put("switches", sws);
+
             GSON.toJson(data, w);
         } catch (IOException e) {
             ArisCore.LOGGER.error("ARIS: Failed to save map cache", e);

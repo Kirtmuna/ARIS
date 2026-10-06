@@ -725,19 +725,10 @@
             routesData = data.routes || [];
             
             switches = [];
-            const lineConfigs = data.lineConfigs || {};
-            for (const lineId of Object.keys(lineConfigs)) {
-                const cfg = lineConfigs[lineId];
-                if (!cfg || !cfg.switches) continue;
-                for (const swKey of Object.keys(cfg.switches)) {
-                    const parts = swKey.split(',');
-                    if (parts.length !== 3) continue;
-                    const sx = parseInt(parts[0], 10);
-                    const sy = parseInt(parts[1], 10);
-                    const sz = parseInt(parts[2], 10);
-                    if (isNaN(sx) || isNaN(sy) || isNaN(sz)) continue;
-                    switches.push({ key: swKey, pos: [sx, sy, sz], lineId });
-                }
+            const cacheSwitches = data.switches || [];
+            for (const sw of cacheSwitches) {
+                if (!sw || !sw.key || !sw.pos) continue;
+                switches.push({ key: sw.key, pos: sw.pos, pointCount: sw.pointCount });
             }
 
             points = data.points || [];
