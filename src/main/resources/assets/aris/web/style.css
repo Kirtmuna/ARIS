@@ -142,3 +142,23 @@ main { flex: 1; display: flex; min-height: 0; }
     cursor: pointer;
 }
 #panelTop .dangerZone button:hover { background: #6a2020; }
+
+#panelTop select {
+    width: 100%;
+    background: #0a0a0a;
+    color: #eee;
+    border: 1px solid #444;
+    padding: 4px 6px;
+    border-radius: 2px;
+    font-size: 12px;
+}
+#panelTop button {
+    background: #222;
+    color: #eee;
+    border: 1px solid #444;
+    padding: 4px 12px;
+    font-size: 12px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+#panelTop button:hover { background: #333; }

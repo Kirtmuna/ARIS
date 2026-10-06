@@ -11,6 +11,7 @@
     let routesData = [];
     let dragging = false;
     let lastMouse = { x: 0, y: 0 };
+    let lineConfigsCache = {};
 
     function resize() {
         const dpr = window.devicePixelRatio || 1;
@@ -77,19 +78,34 @@
             if (!groups.has(key)) groups.set(key, []);
             groups.get(key).push(s);
         }
+        const selectedSignalKey = (selected.list === 'signals') ? selected.id : null;
+
         for (const list of groups.values()) {
             list.sort((a, b) => a.pos[1] - b.pos[1]);
             for (let i = 0; i < list.length; i++) {
                 const s = list[i];
                 const [sx, syBase] = worldToScreen(s.pos[0], s.pos[2]);
                 const sy = syBase - i * signalStackGap;
+
+                const skey = Math.floor(s.pos[0]) + ',' + Math.floor(s.pos[1]) + ',' + Math.floor(s.pos[2]);
+                const isSelected = (skey === selectedSignalKey);
+                
                 ctx.fillStyle = aspectColor(s.aspect);
                 ctx.beginPath();
                 ctx.arc(sx, sy, signalRadius, 0, Math.PI * 2);
                 ctx.fill();
+                
                 ctx.strokeStyle = 'rgba(0,0,0,0.6)';
                 ctx.lineWidth = signalOutline;
                 ctx.stroke();
+                
+                if (isSelected) {
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, signalRadius + signalOutline + 3, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#44ccff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
             }
         }
         for (const pt of points) {
@@ -101,6 +117,67 @@
             ctx.lineWidth = signalOutline;
             ctx.strokeRect(sx - r, sy - r, r * 2, r * 2);
         }
+    }
+
+    let clickStart = null;
+    canvas.addEventListener('mousedown', e => {
+        clickStart = { x: e.clientX, y: e.clientY };
+    });
+    canvas.addEventListener('mouseup', e => {
+        if (!clickStart) return;
+        const dx = e.clientX - clickStart.x;
+        const dy = e.clientY - clickStart.y;
+        clickStart = null;
+        if (dx * dx + dy * dy > 25) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        const hit = pickSignal(mx, my);
+        if (hit) {
+            selectSignal(hit.key);
+        } else {
+            selected = { list: null, id: null };
+            renderPanelTop();
+            draw();
+        }
+    });
+
+    function pickSignal(mx, my) {
+        const sizeRatio = Math.min(1, camera.scale / 1.5);
+        const hitRadius = 8 * sizeRatio + 4;
+        const gap = 10 * sizeRatio;
+
+        const groups = new Map();
+        for (const s of signals) {
+            const key = Math.round(s.pos[0]) + ',' + Math.round(s.pos[2]);
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(s);
+        }
+
+        let best = null;
+        let bestDist = hitRadius * hitRadius;
+
+        for (const list of groups.values()) {
+            list.sort((a, b) => a.pos[1] - b.pos[1]);
+            for (let i = 0; i < list.length; i++) {
+                const s = list[i];
+                const [sx, syBase] = worldToScreen(s.pos[0], s.pos[2]);
+                const sy = syBase - i * gap;
+                const dx = mx - sx;
+                const dy = my - sy;
+                const d2 = dx * dx + dy * dy;
+                if (d2 < bestDist) {
+                    bestDist = d2;
+                    best = s;
+                }
+            }
+        }
+
+        if (!best) return null;
+        const k = Math.floor(best.pos[0]) + ',' + Math.floor(best.pos[1]) + ',' + Math.floor(best.pos[2]);
+        return { key: k, signal: best };
     }
     // パン/ズーム
     canvas.addEventListener('mousedown', e => {
@@ -411,6 +488,12 @@
         renderPanelTop();
     }
 
+    function selectSignal(key) {
+        selected = { list: 'signals', id: key };
+        renderPanelTop();
+        draw();
+    }
+
     function renderPanelTop() {
         const ph = document.getElementById('panelTopPlaceholder');
         const content = document.getElementById('panelTopContent');
@@ -422,6 +505,12 @@
         }
         ph.style.display = 'none';
         content.style.display = '';
+
+        // 信号
+        if (selected.list === 'signals') {
+            renderSignalPanel(content);
+            return;
+        }
 
         const t = treeState[selected.list];
         const isFolder = !!t.folders[selected.id];
@@ -445,6 +534,94 @@
                 <div class="field"><label>編集</label><div class="value" style="color:#888;">(未実装)</div></div>
                 <div class="dangerZone"><button id="btnDeleteItem" disabled>この項目を削除 (未実装)</button></div>
             `;
+        }
+    }
+
+    function renderSignalPanel(content) {
+        const key = selected.id;
+        const parts = key.split(',');
+        const x = parts[0], y = parts[1], z = parts[2];
+        
+        let currentType = '';
+        let foundLineId = null;
+        for (const lineId of Object.keys(lineConfigsCache)) {
+            const cfg = lineConfigsCache[lineId];
+            if (cfg && cfg.signals && cfg.signals[key]) {
+                currentType = cfg.signals[key].type || '';
+                foundLineId = lineId;
+                break;
+            }
+        }
+
+        const types = [
+            { v: '',   l: '(未登録)' },
+            { v: '2A', l: '2灯式A' },
+            { v: '2B', l: '2灯式B' },
+            { v: '3',  l: '3灯式' },
+            { v: '3A', l: '3灯式A' },
+            { v: '3B', l: '3灯式B' },
+            { v: '4',  l: '4灯式' },
+            { v: '4A', l: '4灯式A' },
+            { v: '4B', l: '4灯式B' },
+            { v: '5A', l: '5灯式A' },
+            { v: '5B', l: '5灯式B' },
+            { v: '6',  l: '6灯式' }
+        ];
+        const options = types.map(t =>
+        `<option value="${t.v}" ${t.v === currentType ? 'selected' : ''}>${t.l}</option>`
+        ).join('');
+
+        content.innerHTML = `
+            <h3>信号</h3>
+            <div class="field"><label>座標</label><div class="value">${x}, ${y}, ${z}</div></div>
+            <div class="field">
+                <label>灯式</label>
+                <select id="signalTypeSelect">${options}</select>
+            </div>
+            <div class="field">
+                <button id="btnSignalSave">保存</button>
+            </div>
+        `;
+
+        document.getElementById('btnSignalSave').addEventListener('click', () => {
+            const sel = document.getElementById('signalTypeSelect');
+            saveSignal(key, sel.value);
+        });
+    }
+
+    async function saveSignal(key, type) {
+        let targetLineId = null;
+        for (const lineId of Object.keys(lineConfigsCache)) {
+            const cfg = lineConfigsCache[lineId];
+            if (cfg && cfg.signals && cfg.signals[key]) {
+                targetLineId = lineId;
+                break;
+            }
+        }
+        if (!targetLineId) {
+            const ids = Object.keys(lineConfigsCache);
+            if (ids.length === 0) {
+                alert('路線がありません');
+                return;
+            }
+            targetLineId = ids[0];
+        }
+
+        try {
+            const r = await fetch('/api/signal/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lineId: targetLineId, key, type })
+            });
+            const res = await r.json();
+            if (!res.ok) {
+                alert('保存失敗: ' + (res.error || ''));
+                return;
+            }
+            currentVersion = -1;
+            fetchMap();
+        } catch (e) {
+            alert('通信エラー: ' + e);
         }
     }
 
@@ -560,6 +737,7 @@
             }
 
             points = data.points || [];
+            lineConfigsCache = data.lineConfigs || {};
             syncItemsFromServer();
             renderList('sections');
             renderList('routes');

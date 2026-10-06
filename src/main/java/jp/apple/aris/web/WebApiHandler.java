@@ -5,6 +5,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import jp.apple.aris.ctc.config.LineConfig;
 import jp.apple.aris.ctc.config.LineManager;
+import jp.apple.aris.ctc.network.ServerLineSyncHandler;
 import jp.apple.aris.ctc.state.LineStateManager;
 import jp.apple.aris.ctc.state.SignalState;
 import jp.ngt.rtm.electric.TileEntitySignal;
@@ -33,8 +34,15 @@ public class WebApiHandler implements HttpHandler {
     @Override
     public void handle(HttpExchange ex) throws IOException {
         String path = ex.getRequestURI().getPath();
-        Object result;
+        String method = ex.getRequestMethod();
+
         try {
+            if ("POST".equals(method)) {
+                handlePost(ex, path);
+                return;
+            }
+
+            Object result;
             switch (path) {
                 case "/api/health":
                     result = health();
@@ -52,11 +60,40 @@ public class WebApiHandler implements HttpHandler {
                     sendJson(ex, 404, err("unknown endpoint"));
                     return;
             }
+            sendJson(ex, 200, result);
         } catch (Exception e) {
             sendJson(ex, 500, err(e.toString()));
+        }
+    }
+
+    private void handlePost(HttpExchange ex, String path) throws IOException {
+        String body = new String(readAll(ex.getRequestBody()), StandardCharsets.UTF_8);
+        Map<String, Object> req;
+        try {
+            req = GSON.fromJson(body, Map.class);
+        } catch (Exception e) {
+            sendJson(ex, 400, err("invalid json"));
             return;
         }
+
+        Object result;
+        switch (path) {
+            case "/api/signal/update":
+                result = updateSignal(req);
+                break;
+            default:
+                sendJson(ex, 404, err("unknown endpoint"));
+                return;
+        }
         sendJson(ex, 200, result);
+    }
+
+    private byte[] readAll(java.io.InputStream in) throws IOException {
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+        byte[] buf = new byte[4096];
+        int n;
+        while ((n = in.read(buf)) > 0) bos.write(buf, 0, n);
+        return bos.toByteArray();
     }
 
     private Map<String, Object> health() {
@@ -184,6 +221,46 @@ public class WebApiHandler implements HttpHandler {
         m.put("lineConfigs", lineConfigs);
         m.put("points", pointMarks);
         return m;
+    }
+    
+    private Map<String, Object> updateSignal(Map<String, Object> req) {
+        String lineId = (String) req.get("lineId");
+        String key = (String) req.get("key");
+        String type = (String) req.get("type");
+
+        Map<String, Object> r = new HashMap<>();
+        if (lineId == null || key == null) {
+            r.put("ok", false);
+            r.put("error", "lineId/key required");
+            return r;
+        }
+
+        LineManager.reloadLine(lineId);
+        LineConfig cfg = LineManager.getLine(lineId);
+        if (cfg == null) {
+            r.put("ok", false);
+            r.put("error", "line not found: " + lineId);
+            return r;
+        }
+
+        if (type == null || type.isEmpty()) {
+            if (cfg.signals != null) {
+                cfg.signals.remove(key);
+            }
+        } else {
+            if (cfg.signals == null) cfg.signals = new HashMap<>();
+            LineConfig.SignalConfig sc = new LineConfig.SignalConfig();
+            sc.type = type;
+            cfg.signals.put(key, sc);
+        }
+
+        LineManager.saveLine(lineId);
+        LineStateManager.initializeStates();
+        ServerLineSyncHandler.broadcastLineList(
+                FMLCommonHandler.instance().getMinecraftServerInstance());
+
+        r.put("ok", true);
+        return r;
     }
     
     private int findAspectAt(WorldServer world, BlockPos pos) {
