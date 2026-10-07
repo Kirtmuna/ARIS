@@ -4,59 +4,79 @@ import jp.apple.aris.ctc.state.LineStateManager;
 import jp.apple.aris.ctc.state.RailState;
 import jp.apple.aris.ctc.state.SectionState;
 import jp.apple.aris.ctc.state.SignalState;
+import jp.ngt.rtm.entity.train.EntityBogie;
 import jp.ngt.rtm.entity.train.EntityTrainBase;
+import jp.ngt.rtm.entity.train.util.Formation;
+import jp.ngt.rtm.entity.train.util.FormationEntry;
+import jp.ngt.rtm.rail.TileEntityLargeRailCore;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.Map;
-
+import java.util.WeakHashMap;
 
 public class ArisApiUtil {
+    private static final Map<EntityTrainBase, SectionState> CURRENT_SECTION = new WeakHashMap<>();
     /**
-     * 全路線を走査して、引数の車両がいる区間を返す
-     * 見つからない場合は null
+     * 車両が今乗っているレール（currentRailObj）から、
+     * それが属する区間を逆引きする。
      */
-    public static SectionState getSectionOfTrain(EntityTrainBase train) {
+    public static SectionState getSection(EntityTrainBase train) {
         if (train == null) return null;
 
-        double tx = train.posX;
-        double tz = train.posZ;
+        EntityTrainBase head = getFormationHead(train);
+        if (head == null) head = train;
+        
+        EntityBogie bogie = head.getBogie(head.getTrainDirection());
+        if (bogie == null) return CURRENT_SECTION.get(train);
 
-        SectionState best = null;
-        double bestDistSq = Double.MAX_VALUE;
+        TileEntityLargeRailCore core = bogie.getCurrentRailObj();
+        if (core == null) return CURRENT_SECTION.get(train);
 
+        BlockPos corePos = core.getPos();
+        String key = corePos.getX() + "," + corePos.getY() + "," + corePos.getZ();
+        
+        SectionState found = findSectionByRailKey(key);
+        if (found != null) {
+            CURRENT_SECTION.put(train, found);
+        }
+        return CURRENT_SECTION.get(train);
+    }
+
+    private static SectionState findSectionByRailKey(String railKey) {
         for (Map<String, SectionState> sections : LineStateManager.getAllLineSections().values()) {
             if (sections == null) continue;
             for (SectionState sec : sections.values()) {
                 for (RailState rail : sec.getSectionRails()) {
-                    if (rail == null || !rail.isOccupied()) continue;
+                    if (rail == null) continue;
                     BlockPos p = rail.getRailPosition();
-                    double dx = (p.getX() + 0.5) - tx;
-                    double dz = (p.getZ() + 0.5) - tz;
-                    double d2 = dx * dx + dz * dz;
-                    if (d2 < bestDistSq) {
-                        bestDistSq = d2;
-                        best = sec;
+                    String k = p.getX() + "," + p.getY() + "," + p.getZ();
+                    if (k.equals(railKey)) {
+                        return sec;
                     }
                 }
             }
         }
-        return best;
+        return null;
     }
-    /**
-     * 指定車両がいる区間の次の信号を返す
-     */
-    public static SignalState getNextSignalForTrain(EntityTrainBase train) {
-        SectionState sec = getSectionOfTrain(train);
+
+    private static EntityTrainBase getFormationHead(EntityTrainBase train) {
+        Formation formation = train.getFormation();
+        if (formation == null) return train;
+        for (FormationEntry entry : formation.entries) {
+            if (entry == null || entry.train == null) continue;
+            if (formation.isFrontCar(entry.train)) return entry.train;
+        }
+        return train;
+    }
+
+    public static SignalState getNextSignal(EntityTrainBase train) {
+        SectionState sec = getSection(train);
         if (sec == null) return null;
         return sec.resolveNextSignal();
     }
-    /**
-     * 指定車両がいる区間の次の信号の現示値を返す。
-     * 0=停止, 1=警戒, 2=注意, 3=減速, 4=進行, 5=高速進行
-     * -1=err
-     */
-    public static int getNextSignalAspectForTrain(EntityTrainBase train) {
-        SignalState sig = getNextSignalForTrain(train);
+
+    public static int getNextSignalAspect(EntityTrainBase train) {
+        SignalState sig = getNextSignal(train);
         return sig != null ? sig.getCurrentAspect() : -1;
     }
 }
