@@ -168,3 +168,34 @@ main { flex: 1; display: flex; min-height: 0; }
     border-color: #44ccff;
     color: #fff;
 }
+
+#panelTop .listBoxReadonly {
+    background: #0a0a0a;
+    border: 1px solid #333;
+    border-radius: 2px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 11px;
+}
+#panelTop .listBoxReadonly .listRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 6px;
+    border-bottom: 1px solid #161616;
+}
+#panelTop .listBoxReadonly .listRow:last-child { border-bottom: none; }
+#panelTop .listBoxReadonly .listRow.empty {
+    color: #666;
+    justify-content: center;
+}
+#panelTop .listBoxReadonly .idx {
+    color: #888;
+    min-width: 24px;
+    text-align: right;
+}
+#panelTop .listBoxReadonly .mono {
+    font-family: monospace;
+    color: #ddd;
+    word-break: break-all;
+}

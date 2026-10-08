@@ -12,6 +12,7 @@
     let dragging = false;
     let lastMouse = { x: 0, y: 0 };
     let lineConfigsCache = {};
+    let railKeyToGroup = {};  // railKey -> groupKey
     let pickMode = null;  // { purpose: 'nSignal'|'rSignal', switchId, pointKey }
     let pendingPointEdit = null;  // { switchId, pointKey, nSignal, rSignal, lineId }
 
@@ -51,12 +52,43 @@
         const switchRailKeys = new Set(
             switches.map(sw => sw.pos[0] + ',' + sw.pos[1] + ',' + sw.pos[2])
         );
+        
+        const selectedSectionRailKeys = new Set();
+        if (selected.list === 'sections') {
+            for (const lineId of Object.keys(lineConfigsCache)) {
+                const cfg = lineConfigsCache[lineId];
+                if (cfg && cfg.sections && cfg.sections[selected.id]) {
+                    const sectionRails = cfg.sections[selected.id].rails || [];
+                    const groupKeys = new Set();
+                    for (const sr of sectionRails) {
+                        const k = sr[0] + ',' + sr[1] + ',' + sr[2];
+                        selectedSectionRailKeys.add(k);
+                        const gk = railKeyToGroup[k];
+                        if (gk) groupKeys.add(gk);
+                    }
+                    for (const r of rails) {
+                        const gk = railKeyToGroup[r.key];
+                        if (gk && groupKeys.has(gk)) {
+                            selectedSectionRailKeys.add(r.key);
+                        }
+                    }
+                    break;
+                }
+            }
+        }
 
         ctx.lineWidth = 2;
         ctx.lineCap = 'round';
         for (const r of rails) {
+            const isSelected = selectedSectionRailKeys.has(r.key);
             const isSwitch = switchRailKeys.has(r.key);
-            ctx.strokeStyle = isSwitch ? '#ff8800' : '#fff';
+            if (isSelected) {
+                ctx.strokeStyle = '#ffdd00';
+                ctx.lineWidth = 4;
+            } else {
+                ctx.strokeStyle = isSwitch ? '#ff8800' : '#fff';
+                ctx.lineWidth = 2;
+            }
             for (const poly of r.polylines) {
                 ctx.beginPath();
                 for (let i = 0; i < poly.length; i++) {
@@ -616,6 +648,7 @@
         selected = { list: listKey, id };
         renderList(listKey);
         renderPanelTop();
+        draw();
     }
 
     function selectFolder(listKey, id) {
@@ -697,9 +730,11 @@
                 if (!confirm('このフォルダを削除しますか？')) return;
                 deleteFolder(selected.list, selected.id);
             });
+        } else if (selected.list === 'sections') {
+            renderSectionPanel(content, selected.id);
         } else {
             content.innerHTML = `
-                <h3>${selected.list === 'sections' ? '区間' : '進路'}</h3>
+                <h3>進路</h3>
                 <div class="field"><label>ID</label><div class="value">${escapeHtml(selected.id)}</div></div>
                 <div class="field"><label>編集</label><div class="value" style="color:#888;">(未実装)</div></div>
                 <div class="dangerZone"><button id="btnDeleteItem" disabled>この項目を削除 (未実装)</button></div>
@@ -757,6 +792,65 @@
             const sel = document.getElementById('signalTypeSelect');
             saveSignal(key, sel.value);
         });
+    }
+
+    function renderSectionPanel(content, sectionId) {
+        let cfg = null;
+        let lineId = null;
+        for (const lid of Object.keys(lineConfigsCache)) {
+            const c = lineConfigsCache[lid];
+            if (c && c.sections && c.sections[sectionId]) {
+                cfg = c.sections[sectionId];
+                lineId = lid;
+                break;
+            }
+        }
+        if (!cfg) {
+            content.innerHTML = `<h3>区間</h3><div class="field">区間が見つかりません: ${escapeHtml(sectionId)}</div>`;
+            return;
+        }
+        
+        const rails = cfg.rails || [];
+        const railItems = rails.map((r, i) => {
+            const k = r[0] + ',' + r[1] + ',' + r[2];
+            return `<div class="listRow"><span class="idx">${i + 1}</span><span class="mono">${escapeHtml(k)}</span></div>`;
+        }).join('');
+        const railBlock = rails.length > 0
+        ? railItems
+        : '<div class="listRow empty">(レール未設定)</div>';
+        
+        const startSignal = cfg.startSignal || '';
+        const endSignal = cfg.endSignal || '';
+        const startLabel = formatSignalRef(startSignal);
+        const endLabel = formatSignalRef(endSignal);
+
+        content.innerHTML = `
+            <h3>区間</h3>
+            <div class="field"><label>ID</label><div class="value">${escapeHtml(sectionId)}</div></div>
+
+            <div class="field">
+                <label>開始信号 (startSignal)</label>
+                <div class="value">${startSignal ? escapeHtml(startLabel) : '(未設定)'}</div>
+            </div>
+
+            <div class="field">
+                <label>終端 (endSignal)</label>
+                <div class="value">${endSignal ? escapeHtml(endLabel) : '(未設定)'}</div>
+            </div>
+
+            <div class="field">
+                <label>レール (${rails.length}本)</label>
+                <div class="listBoxReadonly">${railBlock}</div>
+            </div>
+        `;
+    }
+    function formatSignalRef(ref) {
+        if (!ref) return '(未設定)';
+        const dotIdx = ref.lastIndexOf('.');
+        if (dotIdx > 0 && /^P\d+$/.test(ref.substring(dotIdx + 1))) {
+            return ref + ' [分岐]';
+        }
+        return ref + ' [信号]';
     }
 
     async function saveSignal(key, type) {
@@ -974,6 +1068,10 @@
             const r = await fetch('/api/map');
             const data = await r.json();
             rails = data.rails || [];
+            railKeyToGroup = {};
+            for (const r of rails) {
+                railKeyToGroup[r.key] = r.groupKey || r.key;
+            }
             signals = data.signals || [];
             sectionsData = data.sections || [];
             routesData = data.routes || [];

@@ -32,6 +32,8 @@ public class ArisMapCache {
 
     // rails
     private final Map<String, List<List<double[]>>> rails = new LinkedHashMap<>();
+    // railKey -> groupKey
+    private final Map<String, String> railGroups = new HashMap<>();
     // signals
     private final Map<String, double[]> signals = new LinkedHashMap<>();
     private final Map<String, Integer> signalAspects = new HashMap<>();
@@ -95,6 +97,7 @@ public class ArisMapCache {
         for (Map.Entry<String, List<List<double[]>>> e : rails.entrySet()) {
             Map<String, Object> r = new HashMap<>();
             r.put("key", e.getKey());
+            r.put("groupKey", railGroups.getOrDefault(e.getKey(), e.getKey()));
             r.put("polylines", e.getValue());
             railsOut.add(r);
         }
@@ -179,6 +182,13 @@ public class ArisMapCache {
                     changed = true;
                 }
                 
+                String groupKey = computeGroupKey(core, key);
+                String prevGroupKey = railGroups.get(key);
+                if (!groupKey.equals(prevGroupKey)) {
+                    railGroups.put(key, groupKey);
+                    changed = true;
+                }
+
                 List<List<double[]>> polys = new ArrayList<>();
                 RailMap[] maps = core.getAllRailMaps();
                 if (maps != null) {
@@ -205,6 +215,12 @@ public class ArisMapCache {
                 BlockPos pos = te.getPos();
                 String key = pos.getX() + "," + pos.getY() + "," + pos.getZ();
                 scannedRailKeys.add(key);
+                String groupKey = computeGroupKey(core, key);
+                String prevGroupKey = railGroups.get(key);
+                if (!groupKey.equals(prevGroupKey)) {
+                    railGroups.put(key, groupKey);
+                    changed = true;
+                }
 
                 List<List<double[]>> polys = new ArrayList<>();
                 RailMap[] maps = core.getAllRailMaps();
@@ -245,6 +261,7 @@ public class ArisMapCache {
             if (scannedRailKeys.contains(e.getKey())) continue;
             BlockPos pos = parseKey(e.getKey());
             if (pos != null && world.isBlockLoaded(pos)) {
+                railGroups.remove(e.getKey());
                 railIt.remove();
                 changed = true;
             }
@@ -362,6 +379,19 @@ public class ArisMapCache {
             return p.rpRoot.anchorYaw;
         }
     }
+    /**
+     * RailCore が属する論理グループの代表座標キーを返す
+     */
+    private static String computeGroupKey(TileEntityLargeRailCore core, String fallbackKey) {
+        try {
+            java.util.List<int[]> groupPositions = core.getRailGroupCorePositions();
+            if (groupPositions != null && !groupPositions.isEmpty()) {
+                int[] gp = groupPositions.get(0);
+                return gp[0] + "," + gp[1] + "," + gp[2];
+            }
+        } catch (Exception ignored) {}
+        return fallbackKey;
+    }
     
     private File getCacheFile() {
         File dir = new File(ArisDir.lineDirectory.getParentFile(), "cache");
@@ -380,11 +410,23 @@ public class ArisMapCache {
             signals.clear();
             signalAspects.clear();
             switches.clear();
+            railGroups.clear();
 
             Object railsObj = data.get("rails");
             if (railsObj instanceof Map) {
                 for (Map.Entry<String, Object> e : ((Map<String, Object>) railsObj).entrySet()) {
                     rails.put(e.getKey(), parsePolys(e.getValue()));
+                }
+            }
+            Object railsListObj = data.get("railsList");
+            if (railsListObj instanceof List) {
+                for (Object o : (List<?>) railsListObj) {
+                    Map<String, Object> m = (Map<String, Object>) o;
+                    String key = (String) m.get("key");
+                    String gk = (String) m.get("groupKey");
+                    if (key != null && gk != null) {
+                        railGroups.put(key, gk);
+                    }
                 }
             }
             Object sigObj = data.get("signals");
@@ -453,6 +495,15 @@ public class ArisMapCache {
         try (Writer w = new OutputStreamWriter(new FileOutputStream(getCacheFile()), StandardCharsets.UTF_8)) {
             Map<String, Object> data = new HashMap<>();
             data.put("rails", rails);
+            
+            List<Map<String, Object>> railsList = new ArrayList<>();
+            for (Map.Entry<String, String> e : railGroups.entrySet()) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("key", e.getKey());
+                m.put("groupKey", e.getValue());
+                railsList.add(m);
+            }
+            data.put("railsList", railsList);
 
             List<Map<String, Object>> sigs = new ArrayList<>();
             for (Map.Entry<String, double[]> e : signals.entrySet()) {
