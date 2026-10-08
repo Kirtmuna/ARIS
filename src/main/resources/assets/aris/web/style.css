@@ -162,3 +162,9 @@ main { flex: 1; display: flex; min-height: 0; }
     cursor: pointer;
 }
 #panelTop button:hover { background: #333; }
+
+#panelTop button.active {
+    background: #2a4a6a;
+    border-color: #44ccff;
+    color: #fff;
+}

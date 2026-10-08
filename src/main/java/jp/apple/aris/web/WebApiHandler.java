@@ -78,6 +78,9 @@ public class WebApiHandler implements HttpHandler {
             case "/api/signal/update":
                 result = updateSignal(req);
                 break;
+            case "/api/switch/update":
+                result = updateSwitchPoint(req);
+                break;
             default:
                 sendJson(ex, 404, err("unknown endpoint"));
                 return;
@@ -167,51 +170,28 @@ public class WebApiHandler implements HttpHandler {
         MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
         WorldServer world = server != null ? server.getWorld(0) : null;
 
+        for (Map<String, Object> sw : ArisMapCache.get().getSwitchKeys()) {
+            String switchKey = (String) sw.get("key");
+            Object ptsObj = sw.get("points");
+            if (!(ptsObj instanceof List)) continue;
+            for (Object po : (List<?>) ptsObj) {
+                Map<String, Object> pm = (Map<String, Object>) po;
+                Map<String, Object> out = new HashMap<>();
+                out.put("switchId", switchKey);
+                out.put("pointKey", pm.get("pointKey"));
+                out.put("index", pm.get("index"));
+                out.put("pos", pm.get("pos"));
+                out.put("yaw", pm.get("yaw"));
+                pointMarks.add(out);
+            }
+        }
+
         for (String lineId : LineManager.getAllLines().keySet()) {
             LineConfig cfg = LineManager.getLine(lineId);
             if (cfg == null) continue;
             if (cfg.sections != null) sectionIds.addAll(cfg.sections.keySet());
             if (cfg.routes != null) routeIds.addAll(cfg.routes.keySet());
             lineConfigs.put(lineId, cfg);
-            
-            if (cfg.switches == null) cfg.switches = new HashMap<>();
-
-            Set<String> handledKeys = new LinkedHashSet<>(cfg.switches.keySet());
-            for (Map<String, Object> sw : ArisMapCache.get().getSwitchKeys()) {
-                handledKeys.add((String) sw.get("key"));
-            }
-
-            for (String switchKey : handledKeys) {
-                int[] swPos = parseCoordKey(switchKey);
-                if (swPos == null) continue;
-
-                BlockPos swBlockPos = new BlockPos(swPos[0], swPos[1], swPos[2]);
-                if (world == null || !world.isBlockLoaded(swBlockPos)) continue;
-                TileEntity te = world.getTileEntity(swBlockPos);
-                if (!(te instanceof TileEntityLargeRailSwitchCore)) continue;
-
-                TileEntityLargeRailSwitchCore core =
-                        (TileEntityLargeRailSwitchCore) te;
-                SwitchType st = core.getSwitch();
-                if (st == null) continue;
-                Point[] points = st.getPoints();
-                if (points == null) continue;
-
-                for (int i = 0; i < points.length; i++) {
-                    Point p = points[i];
-                    if (p == null || p.rpRoot == null) continue;
-                    Map<String, Object> pm = new HashMap<>();
-                    pm.put("switchId", switchKey);
-                    pm.put("pointKey", "P" + i);
-                    pm.put("index", i);
-                    pm.put("pos", new double[]{
-                            p.rpRoot.posX,
-                            p.rpRoot.posY,
-                            p.rpRoot.posZ
-                    });
-                    pointMarks.add(pm);
-                }
-            }
         }
         m.put("sections", sectionIds);
         m.put("routes", routeIds);
@@ -250,6 +230,51 @@ public class WebApiHandler implements HttpHandler {
             sc.type = type;
             cfg.signals.put(key, sc);
         }
+
+        LineManager.saveLine(lineId);
+        LineStateManager.initializeStates();
+        ServerLineSyncHandler.broadcastLineList(
+                FMLCommonHandler.instance().getMinecraftServerInstance());
+
+        r.put("ok", true);
+        return r;
+    }
+
+    private Map<String, Object> updateSwitchPoint(Map<String, Object> req) {
+        String lineId = (String) req.get("lineId");
+        String switchId = (String) req.get("switchId");
+        String pointKey = (String) req.get("pointKey");
+        String nSignal = (String) req.get("nSignal");
+        String rSignal = (String) req.get("rSignal");
+
+        Map<String, Object> r = new HashMap<>();
+        if (lineId == null || switchId == null || pointKey == null) {
+            r.put("ok", false);
+            r.put("error", "lineId/switchId/pointKey required");
+            return r;
+        }
+
+        LineManager.reloadLine(lineId);
+        LineConfig cfg = LineManager.getLine(lineId);
+        if (cfg == null) {
+            r.put("ok", false);
+            r.put("error", "line not found: " + lineId);
+            return r;
+        }
+        if (cfg.switches == null) cfg.switches = new HashMap<>();
+        if (!cfg.switches.containsKey(switchId)) {
+            cfg.switches.put(switchId, new LineConfig.SwitchConfig());
+            cfg.switches.get(switchId).points = new HashMap<>();
+        }
+        LineConfig.SwitchConfig sc = cfg.switches.get(switchId);
+        if (sc.points == null) sc.points = new HashMap<>();
+        if (!sc.points.containsKey(pointKey)) {
+            sc.points.put(pointKey, new LineConfig.SwitchConfig.PointConfig());
+        }
+        LineConfig.SwitchConfig.PointConfig pc = sc.points.get(pointKey);
+
+        pc.nSignal = (nSignal == null || nSignal.isEmpty()) ? null : nSignal;
+        pc.rSignal = (rSignal == null || rSignal.isEmpty()) ? null : rSignal;
 
         LineManager.saveLine(lineId);
         LineStateManager.initializeStates();

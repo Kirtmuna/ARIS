@@ -12,6 +12,8 @@
     let dragging = false;
     let lastMouse = { x: 0, y: 0 };
     let lineConfigsCache = {};
+    let pickMode = null;  // { purpose: 'nSignal'|'rSignal', switchId, pointKey }
+    let pendingPointEdit = null;  // { switchId, pointKey, nSignal, rSignal, lineId }
 
     function resize() {
         const dpr = window.devicePixelRatio || 1;
@@ -108,14 +110,19 @@
                 }
             }
         }
-        for (const pt of points) {
-            const [sx, sy] = worldToScreen(pt.pos[0], pt.pos[2]);
+        const selPointKey = (selected.list === 'switches' && pendingPointEdit)
+        ? (pendingPointEdit.switchId + '.' + pendingPointEdit.pointKey) : null;
+
+        computePointPositions();
+        for (const item of computedPointPositions) {
+            const pt = item.pt;
             const r = signalRadius * 1.0;
-            ctx.fillStyle = '#ff3030';
-            ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+            const isSel = ((pt.switchId + '.' + pt.pointKey) === selPointKey);
+            ctx.fillStyle = isSel ? '#ffaa00' : '#ff3030';
+            ctx.fillRect(item.sx - r, item.sy - r, r * 2, r * 2);
             ctx.strokeStyle = 'rgba(0,0,0,0.6)';
             ctx.lineWidth = signalOutline;
-            ctx.strokeRect(sx - r, sy - r, r * 2, r * 2);
+            ctx.strokeRect(item.sx - r, item.sy - r, r * 2, r * 2);
         }
     }
 
@@ -134,14 +141,32 @@
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
 
-        const hit = pickSignal(mx, my);
-        if (hit) {
-            selectSignal(hit.key);
-        } else {
-            selected = { list: null, id: null };
-            renderPanelTop();
+        if (pickMode) {
+            const hitS = pickSignal(mx, my);
+            if (hitS) {
+                onPickedSignal(hitS.key);
+            } else {
+                pickMode = null;
+                renderPanelTop();
+            }
             draw();
+            return;
         }
+
+        const hitS = pickSignal(mx, my);
+        if (hitS) {
+            selectSignal(hitS.key);
+            return;
+        }
+        const hitP = pickPoint(mx, my);
+        if (hitP) {
+            selectPoint(hitP.switchId, hitP.pointKey);
+            return;
+        }
+        selected = { list: null, id: null };
+        pendingPointEdit = null;
+        renderPanelTop();
+        draw();
     });
 
     function pickSignal(mx, my) {
@@ -178,6 +203,117 @@
         if (!best) return null;
         const k = Math.floor(best.pos[0]) + ',' + Math.floor(best.pos[1]) + ',' + Math.floor(best.pos[2]);
         return { key: k, signal: best };
+    }
+    let computedPointPositions = [];
+    function computePointPositions() {
+        const sizeRatio = Math.min(1, camera.scale / 1.5);
+        const signalRadius = 5 * sizeRatio;
+        const spacing = signalRadius * 2.4 + 6;
+
+        const raw = points.map(pt => {
+            const [sx, sy] = worldToScreen(pt.pos[0], pt.pos[2]);
+            return { pt, sx, sy };
+        });
+
+        const n = raw.length;
+        if (n === 0) { computedPointPositions = []; return; }
+
+        const parent = Array.from({length: n}, (_, i) => i);
+        const find = i => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+        const union = (i, j) => { parent[find(i)] = find(j); };
+
+        for (let i = 0; i < n; i++) {
+            for (let j = i + 1; j < n; j++) {
+                const dx = raw[i].sx - raw[j].sx;
+                const dy = raw[i].sy - raw[j].sy;
+                if (dx * dx + dy * dy < spacing * spacing) {
+                    union(i, j);
+                }
+            }
+        }
+
+        const groups = new Map();
+        for (let i = 0; i < n; i++) {
+            const r = find(i);
+            if (!groups.has(r)) groups.set(r, []);
+            groups.get(r).push(raw[i]);
+        }
+
+        const result = [];
+        for (const group of groups.values()) {
+            if (group.length === 1) {
+                result.push(group[0]);
+                continue;
+            }
+
+            let sumDx = 0, sumDy = 0;
+            for (const item of group) {
+                const yawDeg = (item.pt.yaw != null) ? item.pt.yaw : 0;
+                const rad = yawDeg * Math.PI / 180;
+                sumDx += -Math.sin(rad);
+                sumDy +=  Math.cos(rad);
+            }
+            const mag = Math.sqrt(sumDx * sumDx + sumDy * sumDy);
+            let dirX, dirY;
+            if (mag > 1e-3) {
+                dirX = sumDx / mag;
+                dirY = sumDy / mag;
+            } else {
+                dirX = 1; dirY = 0;
+            }
+
+            group.sort((a, b) =>
+            (a.sx * dirX + a.sy * dirY) - (b.sx * dirX + b.sy * dirY));
+
+            let cx = 0, cy = 0;
+            for (const item of group) { cx += item.sx; cy += item.sy; }
+            cx /= group.length;
+            cy /= group.length;
+
+            const mid = (group.length - 1) / 2;
+            for (let i = 0; i < group.length; i++) {
+                const offset = (i - mid) * spacing;
+                result.push({
+                    pt: group[i].pt,
+                    sx: cx + dirX * offset,
+                    sy: cy + dirY * offset
+                });
+            }
+        }
+        computedPointPositions = result;
+    }
+    function pickPoint(mx, my) {
+        const sizeRatio = Math.min(1, camera.scale / 1.5);
+        const hitRadius = 8 * sizeRatio + 4;
+
+        computePointPositions();
+
+        let best = null;
+        let bestDist = hitRadius * hitRadius;
+
+        for (const item of computedPointPositions) {
+            const dx = mx - item.sx;
+            const dy = my - item.sy;
+            const d2 = dx * dx + dy * dy;
+            if (d2 < bestDist) {
+                bestDist = d2;
+                best = item.pt;
+            }
+        }
+        if (!best) return null;
+        return { switchId: best.switchId, pointKey: best.pointKey };
+    }
+
+    function onPickedSignal(signalKey) {
+        if (!pickMode || !pendingPointEdit) return;
+        if (pickMode.purpose === 'nSignal') {
+            pendingPointEdit.nSignal = signalKey;
+        } else if (pickMode.purpose === 'rSignal') {
+            pendingPointEdit.rSignal = signalKey;
+        }
+        pickMode = null;
+        renderPanelTop();
+        draw();
     }
     // パン/ズーム
     canvas.addEventListener('mousedown', e => {
@@ -267,7 +403,7 @@
             }
         }
     }
-    
+
     function renderList(listKey) {
         const t = treeState[listKey];
         const ulId = listKey === 'sections' ? 'sectionList' : 'routeList';
@@ -323,7 +459,7 @@
                 li.appendChild(nameSpan);
 
                 li.addEventListener('click', () => selectFolder(listKey, row.id));
-                
+
                 li.addEventListener('dblclick', (e) => {
                     e.stopPropagation();
                     const cur = t.folders[row.id].name || row.id;
@@ -475,7 +611,7 @@
             t.order.push(srcId);
         }
     }
-    
+
     function selectItem(listKey, id) {
         selected = { list: listKey, id };
         renderList(listKey);
@@ -490,6 +626,35 @@
 
     function selectSignal(key) {
         selected = { list: 'signals', id: key };
+        renderPanelTop();
+        draw();
+    }
+
+    function selectPoint(switchId, pointKey) {
+        selected = { list: 'switches', id: switchId + '.' + pointKey };
+
+        let nSig = '';
+        let rSig = '';
+        let lineId = null;
+        for (const lid of Object.keys(lineConfigsCache)) {
+            const cfg = lineConfigsCache[lid];
+            if (cfg && cfg.switches && cfg.switches[switchId]
+            && cfg.switches[switchId].points
+            && cfg.switches[switchId].points[pointKey]) {
+                const p = cfg.switches[switchId].points[pointKey];
+                nSig = p.nSignal || '';
+                rSig = p.rSignal || '';
+                lineId = lid;
+                break;
+            }
+        }
+        if (!lineId) {
+            const ids = Object.keys(lineConfigsCache);
+            if (ids.length > 0) lineId = ids[0];
+        }
+
+        pendingPointEdit = { switchId, pointKey, nSignal: nSig, rSignal: rSig, lineId };
+        pickMode = null;
         renderPanelTop();
         draw();
     }
@@ -509,6 +674,11 @@
         // 信号
         if (selected.list === 'signals') {
             renderSignalPanel(content);
+            return;
+        }
+        // 分岐ポイント
+        if (selected.list === 'switches') {
+            renderSwitchPanel(content);
             return;
         }
 
@@ -541,7 +711,7 @@
         const key = selected.id;
         const parts = key.split(',');
         const x = parts[0], y = parts[1], z = parts[2];
-        
+
         let currentType = '';
         let foundLineId = null;
         for (const lineId of Object.keys(lineConfigsCache)) {
@@ -625,6 +795,90 @@
         }
     }
 
+    function renderSwitchPanel(content) {
+        if (!pendingPointEdit) {
+            content.innerHTML = `<h3>分岐</h3><div class="field">ポイントが選択されていません</div>`;
+            return;
+        }
+        const { switchId, pointKey, nSignal, rSignal } = pendingPointEdit;
+
+        const pickN = pickMode && pickMode.purpose === 'nSignal';
+        const pickR = pickMode && pickMode.purpose === 'rSignal';
+
+        content.innerHTML = `
+            <h3>分岐ポイント</h3>
+            <div class="field"><label>スイッチ</label><div class="value">${escapeHtml(switchId)}</div></div>
+            <div class="field"><label>ポイント</label><div class="value">${escapeHtml(pointKey)}</div></div>
+            <div class="field">
+                <label>N信号 (NORMAL時)</label>
+                <div class="value">${nSignal ? escapeHtml(nSignal) : '(未設定)'}</div>
+                <button id="btnPickN" class="${pickN ? 'active' : ''}">
+                    ${pickN ? '信号を選択中... (空クリックで解除)' : '選択'}
+                </button>
+            </div>
+            <div class="field">
+                <label>R信号 (REVERSE時)</label>
+                <div class="value">${rSignal ? escapeHtml(rSignal) : '(未設定)'}</div>
+                <button id="btnPickR" class="${pickR ? 'active' : ''}">
+                    ${pickR ? '信号を選択中... (空クリックで解除)' : '選択'}
+                </button>
+            </div>
+            <div class="field">
+                <button id="btnSwitchSave">保存</button>
+            </div>
+        `;
+
+        document.getElementById('btnPickN').addEventListener('click', () => {
+            if (pickMode && pickMode.purpose === 'nSignal') {
+                pickMode = null;
+            } else {
+                pickMode = { purpose: 'nSignal', switchId, pointKey };
+            }
+            renderPanelTop();
+            draw();
+        });
+        document.getElementById('btnPickR').addEventListener('click', () => {
+            if (pickMode && pickMode.purpose === 'rSignal') {
+                pickMode = null;
+            } else {
+                pickMode = { purpose: 'rSignal', switchId, pointKey };
+            }
+            renderPanelTop();
+            draw();
+        });
+        document.getElementById('btnSwitchSave').addEventListener('click', saveSwitchPoint);
+    }
+
+    async function saveSwitchPoint() {
+        if (!pendingPointEdit) return;
+        const { switchId, pointKey, nSignal, rSignal, lineId } = pendingPointEdit;
+        if (!lineId) {
+            alert('路線が見つかりません');
+            return;
+        }
+
+        try {
+            const r = await fetch('/api/switch/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    lineId, switchId, pointKey,
+                    nSignal: nSignal || null,
+                    rSignal: rSignal || null
+                })
+            });
+            const res = await r.json();
+            if (!res.ok) {
+                alert('保存失敗: ' + (res.error || ''));
+                return;
+            }
+            currentVersion = -1;
+            fetchMap();
+        } catch (e) {
+            alert('通信エラー: ' + e);
+        }
+    }
+
     function escapeHtml(s) {
         return String(s).replace(/[&<>"']/g, c => ({
             '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -651,7 +905,7 @@
         saveTreeState();
         renderList(listKey);
     }
-    
+
     let folderCounter = 0;
     function newFolderId() {
         return 'f_' + Date.now() + '_' + (folderCounter++);
@@ -685,7 +939,7 @@
             renderList(listKey);
         });
     });
-    
+
     document.querySelectorAll('.folderCreate input').forEach(inp => {
         inp.addEventListener('keydown', e => {
             if (e.key === 'Enter') {
@@ -694,13 +948,13 @@
             }
         });
     });
-    
+
     document.querySelectorAll('.btnAdd').forEach(btn => {
         btn.addEventListener('click', () => {
             alert('Add 機能は未実装です。\n(今後、区間/進路を新規作成するエンドポイントを追加予定)');
         });
     });
-    
+
     let currentVersion = -1;
 
     async function pollVersion() {
@@ -723,7 +977,7 @@
             signals = data.signals || [];
             sectionsData = data.sections || [];
             routesData = data.routes || [];
-            
+
             switches = [];
             const cacheSwitches = data.switches || [];
             for (const sw of cacheSwitches) {

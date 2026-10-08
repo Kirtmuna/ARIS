@@ -10,6 +10,7 @@ import jp.apple.aris.util.ArisDir;
 import jp.ngt.rtm.electric.TileEntitySignal;
 import jp.ngt.rtm.rail.TileEntityLargeRailCore;
 import jp.ngt.rtm.rail.TileEntityLargeRailSwitchCore;
+import jp.ngt.rtm.rail.util.Point;
 import jp.ngt.rtm.rail.util.RailMap;
 import jp.ngt.rtm.rail.util.SwitchType;
 import net.minecraft.tileentity.TileEntity;
@@ -39,10 +40,24 @@ public class ArisMapCache {
     public static class SwitchEntry {
         public double[] pos;
         public int pointCount;
+        public List<PointEntry> points = new ArrayList<>();
         public SwitchEntry() {}
         public SwitchEntry(double[] pos, int pointCount) {
             this.pos = pos;
             this.pointCount = pointCount;
+        }
+    }
+    public static class PointEntry {
+        public String key;
+        public int index;
+        public double[] pos;
+        public double yaw;
+        public PointEntry() {}
+        public PointEntry(String key, int index, double[] pos, double yaw) {
+            this.key = key;
+            this.index = index;
+            this.pos = pos;
+            this.yaw = yaw;
         }
     }
     
@@ -57,6 +72,16 @@ public class ArisMapCache {
             m.put("key", e.getKey());
             m.put("pos", e.getValue().pos);
             m.put("pointCount", e.getValue().pointCount);
+            List<Map<String, Object>> ptsOut = new ArrayList<>();
+            for (PointEntry pe : e.getValue().points) {
+                Map<String, Object> pm = new HashMap<>();
+                pm.put("pointKey", pe.key);
+                pm.put("index", pe.index);
+                pm.put("pos", pe.pos);
+                pm.put("yaw", pe.yaw);
+                ptsOut.add(pm);
+            }
+            m.put("points", ptsOut);
             list.add(m);
         }
         return list;
@@ -91,6 +116,17 @@ public class ArisMapCache {
             s.put("key", e.getKey());
             s.put("pos", e.getValue().pos);
             s.put("pointCount", e.getValue().pointCount);
+
+            List<Map<String, Object>> ptsOut = new ArrayList<>();
+            for (PointEntry pe : e.getValue().points) {
+                Map<String, Object> pm = new HashMap<>();
+                pm.put("pointKey", pe.key);
+                pm.put("index", pe.index);
+                pm.put("pos", pe.pos);
+                pm.put("yaw", pe.yaw);
+                ptsOut.add(pm);
+            }
+            s.put("points", ptsOut);
             sws.add(s);
         }
         m.put("switches", sws);
@@ -114,13 +150,32 @@ public class ArisMapCache {
 
                 TileEntityLargeRailSwitchCore core = (TileEntityLargeRailSwitchCore) te;
                 SwitchType st = core.getSwitch();
-                int pointCount = st != null && st.getPoints() != null ? st.getPoints().length : 0;
 
                 SwitchEntry prev = switches.get(key);
-                if (prev == null || prev.pointCount != pointCount) {
-                    switches.put(key, new SwitchEntry(
-                            new double[]{pos.getX(), pos.getY(), pos.getZ()},
-                            pointCount));
+                SwitchEntry entry = (prev != null) ? prev : new SwitchEntry(
+                        new double[]{pos.getX(), pos.getY(), pos.getZ()}, 0);
+                entry.pos = new double[]{pos.getX(), pos.getY(), pos.getZ()};
+
+                if (st != null && st.getPoints() != null) {
+                    Point[] pts = st.getPoints();
+                    List<PointEntry> newPoints = new ArrayList<>();
+                    for (int i = 0; i < pts.length; i++) {
+                        Point p = pts[i];
+                        if (p == null || p.rpRoot == null) continue;
+                        if (p.branchDir == jp.ngt.rtm.rail.util.RailDir.NONE) continue;
+                        newPoints.add(new PointEntry(
+                                "P" + i, i,
+                                new double[]{p.rpRoot.posX, p.rpRoot.posY, p.rpRoot.posZ},
+                                getTangentYaw(p)));
+                    }
+                    entry.pointCount = newPoints.size();
+                    if (!deepEqualsPoints(entry.points, newPoints)) {
+                        entry.points = newPoints;
+                        changed = true;
+                    }
+                }
+                if (prev == null) {
+                    switches.put(key, entry);
                     changed = true;
                 }
                 
@@ -264,6 +319,49 @@ public class ArisMapCache {
         }
         return true;
     }
+
+    private static boolean deepEqualsPoints(List<PointEntry> a, List<PointEntry> b) {
+        if (a == null || b == null) return a == b;
+        if (a.size() != b.size()) return false;
+        for (int i = 0; i < a.size(); i++) {
+            PointEntry p = a.get(i);
+            PointEntry q = b.get(i);
+            if (!p.key.equals(q.key)) return false;
+            if (p.index != q.index) return false;
+            if (p.pos[0] != q.pos[0] || p.pos[1] != q.pos[1] || p.pos[2] != q.pos[2]) return false;
+            if (p.yaw != q.yaw) return false;
+        }
+        return true;
+    }
+    /**
+     * Point が属するレールの接線方向を返す
+     */
+    private static double getTangentYaw(Point p) {
+        if (p.rmMain == null) {
+            jp.apple.aris.ArisCore.LOGGER.info("[TANGENT] rmMain null, fallback anchorYaw={}", p.rpRoot.anchorYaw);
+            return p.rpRoot.anchorYaw;
+        }
+        int max = (int) (p.rmMain.getLength() * 2.0);
+        if (max <= 0) {
+            jp.apple.aris.ArisCore.LOGGER.info("[TANGENT] max<=0, fallback anchorYaw={}", p.rpRoot.anchorYaw);
+            return p.rpRoot.anchorYaw;
+        }
+        try {
+            double[] start = p.rmMain.getRailPos(max, 0);
+            double[] end   = p.rmMain.getRailPos(max, max);
+            double dx = end[1] - start[1];
+            double dz = end[0] - start[0];
+            double yaw = Math.toDegrees(Math.atan2(-dx, dz));
+            jp.apple.aris.ArisCore.LOGGER.info(
+                    "[TANGENT] start=({}, {}) end=({}, {}) dx={} dz={} yaw={}",
+                    start[1], start[0], end[1], end[0], dx, dz, yaw);
+            if (Math.abs(dx) < 1e-6 && Math.abs(dz) < 1e-6) return p.rpRoot.anchorYaw;
+            return yaw;
+        } catch (Exception e) {
+            jp.apple.aris.ArisCore.LOGGER.warn("[TANGENT] exception, fallback anchorYaw", e);
+            return p.rpRoot.anchorYaw;
+        }
+    }
     
     private File getCacheFile() {
         File dir = new File(ArisDir.lineDirectory.getParentFile(), "cache");
@@ -311,7 +409,23 @@ public class ArisMapCache {
                     double[] arr = {p.get(0), p.get(1), p.get(2)};
                     int pc = m.containsKey("pointCount")
                             ? ((Number) m.get("pointCount")).intValue() : 0;
-                    switches.put(key, new SwitchEntry(arr, pc));
+                    SwitchEntry entry = new SwitchEntry(arr, pc);
+
+                    Object ptsObj = m.get("points");
+                    if (ptsObj instanceof List) {
+                        for (Object po : (List<?>) ptsObj) {
+                            Map<String, Object> pm = (Map<String, Object>) po;
+                            String pk = (String) pm.get("pointKey");
+                            int pi = pm.containsKey("index")
+                                    ? ((Number) pm.get("index")).intValue() : 0;
+                            List<Double> pp = (List<Double>) pm.get("pos");
+                            double yaw = pm.containsKey("yaw")
+                                    ? ((Number) pm.get("yaw")).doubleValue() : 0.0;
+                            entry.points.add(new PointEntry(pk, pi,
+                                    new double[]{pp.get(0), pp.get(1), pp.get(2)}, yaw));
+                        }
+                    }
+                    switches.put(key, entry);
                 }
             }
             ArisCore.LOGGER.info("ARIS: Map cache loaded ({} rails, {} signals, {} switches)",
@@ -356,6 +470,17 @@ public class ArisMapCache {
                 m.put("key", e.getKey());
                 m.put("pos", e.getValue().pos);
                 m.put("pointCount", e.getValue().pointCount);
+
+                List<Map<String, Object>> ptsOut = new ArrayList<>();
+                for (PointEntry pe : e.getValue().points) {
+                    Map<String, Object> pm = new HashMap<>();
+                    pm.put("pointKey", pe.key);
+                    pm.put("index", pe.index);
+                    pm.put("pos", pe.pos);
+                    pm.put("yaw", pe.yaw);
+                    ptsOut.add(pm);
+                }
+                m.put("points", ptsOut);
                 sws.add(m);
             }
             data.put("switches", sws);
