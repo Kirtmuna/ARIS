@@ -55,25 +55,18 @@
         );
         
         const selectedSectionRailKeys = new Set();
-        if (selected.list === 'sections') {
-            for (const lineId of Object.keys(lineConfigsCache)) {
-                const cfg = lineConfigsCache[lineId];
-                if (cfg && cfg.sections && cfg.sections[selected.id]) {
-                    const sectionRails = cfg.sections[selected.id].rails || [];
-                    const groupKeys = new Set();
-                    for (const sr of sectionRails) {
-                        const k = sr[0] + ',' + sr[1] + ',' + sr[2];
-                        selectedSectionRailKeys.add(k);
-                        const gk = railKeyToGroup[k];
-                        if (gk) groupKeys.add(gk);
-                    }
-                    for (const r of rails) {
-                        const gk = railKeyToGroup[r.key];
-                        if (gk && groupKeys.has(gk)) {
-                            selectedSectionRailKeys.add(r.key);
-                        }
-                    }
-                    break;
+        if (selected.list === 'sections' && pendingSectionEdit) {
+            const groupKeys = new Set();
+            for (const sr of pendingSectionEdit.rails) {
+                const k = sr[0] + ',' + sr[1] + ',' + sr[2];
+                selectedSectionRailKeys.add(k);
+                const gk = railKeyToGroup[k];
+                if (gk) groupKeys.add(gk);
+            }
+            for (const r of rails) {
+                const gk = railKeyToGroup[r.key];
+                if (gk && groupKeys.has(gk)) {
+                    selectedSectionRailKeys.add(r.key);
                 }
             }
         }
@@ -175,6 +168,17 @@
         const my = e.clientY - rect.top;
 
         if (pickMode) {
+            if (pickMode.target === 'rail') {
+                const railKey = pickRail(mx, my);
+                if (railKey) {
+                    onPickedRail(railKey);
+                } else {
+                    pickMode = null;
+                    renderPanelTop();
+                }
+                draw();
+                return;
+            }
             const hitS = pickSignal(mx, my);
             if (hitS) {
                 onPickedSignal(hitS.key);
@@ -345,6 +349,42 @@
         if (!best) return null;
         return { switchId: best.switchId, pointKey: best.pointKey };
     }
+    
+    function pickRail(mx, my) {
+        const sizeRatio = Math.min(1, camera.scale / 1.5);
+        const hitRadius = 12 * sizeRatio + 4;
+        let best = null;
+        let bestDist = hitRadius * hitRadius;
+
+        for (const r of rails) {
+            for (const poly of r.polylines) {
+                for (let i = 0; i < poly.length - 1; i++) {
+                    const [sx1, sy1] = worldToScreen(poly[i][0], poly[i][2]);
+                    const [sx2, sy2] = worldToScreen(poly[i+1][0], poly[i+1][2]);
+                    const d2 = distToSegmentSq(mx, my, sx1, sy1, sx2, sy2);
+                    if (d2 < bestDist) {
+                        bestDist = d2;
+                        best = r;
+                    }
+                }
+            }
+        }
+        return best ? best.key : null;
+    }
+
+    function distToSegmentSq(px, py, x1, y1, x2, y2) {
+        const dx = x2 - x1, dy = y2 - y1;
+        const len2 = dx * dx + dy * dy;
+        if (len2 < 1e-9) {
+            const ex = px - x1, ey = py - y1;
+            return ex * ex + ey * ey;
+        }
+        let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+        t = Math.max(0, Math.min(1, t));
+        const ex = px - (x1 + t * dx);
+        const ey = py - (y1 + t * dy);
+        return ex * ex + ey * ey;
+    }
 
     function onPickedSignal(signalKey) {
         if (!pickMode) return;
@@ -372,6 +412,31 @@
             pendingSectionEdit.startSignal = key;
         }
         pickMode = null;
+        renderPanelTop();
+        draw();
+    }
+    function onPickedRail(railKey) {
+        if (!pendingSectionEdit) return;
+        const parts = railKey.split(',');
+        if (parts.length !== 3) return;
+        const x = parseInt(parts[0], 10);
+        const y = parseInt(parts[1], 10);
+        const z = parseInt(parts[2], 10);
+        if (isNaN(x) || isNaN(y) || isNaN(z)) return;
+
+        const rails = pendingSectionEdit.rails;
+        let idx = -1;
+        for (let i = 0; i < rails.length; i++) {
+            if (rails[i][0] === x && rails[i][1] === y && rails[i][2] === z) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx >= 0) {
+            rails.splice(idx, 1);
+        } else {
+            rails.push([x, y, z]);
+        }
         renderPanelTop();
         draw();
     }
@@ -742,11 +807,13 @@
             pendingSectionEdit = null;
             return;
         }
+        const railsCopy = (cfg.rails || []).map(r => [r[0], r[1], r[2]]);
         pendingSectionEdit = {
             sectionId,
             lineId,
             startSignal: cfg.startSignal || '',
-            endSignal: cfg.endSignal || ''
+            endSignal: cfg.endSignal || '',
+            rails: railsCopy
         };
     }
 
@@ -860,20 +927,15 @@
             content.innerHTML = `<h3>区間</h3><div class="field">区間が見つかりません: ${escapeHtml(sectionId)}</div>`;
             return;
         }
-        const { startSignal, endSignal } = pendingSectionEdit;
-        
-        let rails = [];
-        for (const lid of Object.keys(lineConfigsCache)) {
-            const c = lineConfigsCache[lid];
-            if (c && c.sections && c.sections[sectionId] && c.sections[sectionId].rails) {
-                rails = c.sections[sectionId].rails;
-                break;
-            }
-        }
+        const { startSignal, endSignal, rails } = pendingSectionEdit;
         
         const railItems = rails.map((r, i) => {
             const k = r[0] + ',' + r[1] + ',' + r[2];
-            return `<div class="listRow"><span class="idx">${i + 1}</span><span class="mono">${escapeHtml(k)}</span></div>`;
+            return `<div class="listRow">
+                <span class="idx">${i + 1}</span>
+                <span class="mono">${escapeHtml(k)}</span>
+                <button class="railRemove danger" data-idx="${i}">×</button>
+            </div>`;
         }).join('');
         const railBlock = rails.length > 0
         ? railItems
@@ -881,6 +943,7 @@
 
         const pickStart = pickMode && pickMode.purpose === 'startSignal';
         const pickEnd = pickMode && pickMode.purpose === 'endSignal';
+        const pickRail = pickMode && pickMode.target === 'rail';
 
         content.innerHTML = `
             <h3>区間</h3>
@@ -910,6 +973,11 @@
 
             <div class="field">
                 <label>レール (${rails.length}本)</label>
+                <div class="buttonRow">
+                    <button id="btnPickRail" class="${pickRail ? 'active' : ''}">
+                        ${pickRail ? '追加/削除モード中' : 'レール追加/削除モード'}
+                    </button>
+                </div>
                 <div class="listBoxReadonly">${railBlock}</div>
             </div>
 
@@ -958,12 +1026,33 @@
             renderPanelTop();
             draw();
         });
+        document.getElementById('btnPickRail').addEventListener('click', () => {
+            if (pickMode && pickMode.target === 'rail') {
+                pickMode = null;
+            } else {
+                pickMode = { target: 'rail', purpose: 'sectionRail', sectionId };
+            }
+            renderPanelTop();
+            draw();
+        });
+        content.querySelectorAll('.railRemove').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(btn.dataset.idx, 10);
+                if (isNaN(idx)) return;
+                if (idx >= 0 && idx < pendingSectionEdit.rails.length) {
+                    pendingSectionEdit.rails.splice(idx, 1);
+                    renderPanelTop();
+                    draw();
+                }
+            });
+        });
         document.getElementById('btnSectionSave').addEventListener('click', saveSection);
     }
 
     async function saveSection() {
         if (!pendingSectionEdit) return;
-        const { sectionId, lineId, startSignal, endSignal } = pendingSectionEdit;
+        const { sectionId, lineId, startSignal, endSignal, rails } = pendingSectionEdit;
         if (!lineId) {
             alert('路線が見つかりません');
             return;
@@ -975,7 +1064,8 @@
                 body: JSON.stringify({
                     lineId, sectionId,
                     startSignal: startSignal || null,
-                    endSignal: endSignal || null
+                    endSignal: endSignal || null,
+                    rails: rails
                 })
             });
             const res = await r.json();

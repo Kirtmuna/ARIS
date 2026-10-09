@@ -220,3 +220,18 @@ main { flex: 1; display: flex; min-height: 0; }
     opacity: 0.4;
     cursor: default;
 }
+
+#panelTop .listBoxReadonly .railRemove {
+    padding: 0 6px;
+    font-size: 12px;
+    line-height: 1;
+    background: #3a1a1a;
+    border: 1px solid #733;
+    color: #eee;
+    border-radius: 2px;
+    cursor: pointer;
+    margin-left: auto;
+}
+#panelTop .listBoxReadonly .railRemove:hover {
+    background: #5a2020;
+}

@@ -288,11 +288,13 @@ public class WebApiHandler implements HttpHandler {
         return r;
     }
 
+    @SuppressWarnings("unchecked")
     private Map<String, Object> updateSection(Map<String, Object> req) {
         String lineId = (String) req.get("lineId");
         String sectionId = (String) req.get("sectionId");
         String startSignal = (String) req.get("startSignal");
         String endSignal = (String) req.get("endSignal");
+        Object railsObj = req.get("rails");
 
         Map<String, Object> r = new HashMap<>();
         if (lineId == null || sectionId == null) {
@@ -311,6 +313,19 @@ public class WebApiHandler implements HttpHandler {
         LineConfig.SectionConfig sc = cfg.sections.get(sectionId);
         sc.startSignal = (startSignal == null || startSignal.isEmpty()) ? null : startSignal;
         sc.endSignal   = (endSignal   == null || endSignal.isEmpty())   ? null : endSignal;
+        
+        if (railsObj instanceof List) {
+            List<int[]> newRails = new ArrayList<>();
+            for (Object o : (List<?>) railsObj) {
+                List<Object> arr = (List<Object>) o;
+                if (arr.size() < 3) continue;
+                int x = ((Number) arr.get(0)).intValue();
+                int y = ((Number) arr.get(1)).intValue();
+                int z = ((Number) arr.get(2)).intValue();
+                newRails.add(new int[]{x, y, z});
+            }
+            sc.rails = newRails.toArray(new int[0][]);
+        }
 
         LineManager.saveLine(lineId);
         LineStateManager.initializeStates();
