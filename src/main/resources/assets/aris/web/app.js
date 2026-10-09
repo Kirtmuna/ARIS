@@ -15,6 +15,7 @@
     let railKeyToGroup = {};  // railKey -> groupKey
     let pickMode = null;  // { purpose: 'nSignal'|'rSignal', switchId, pointKey }
     let pendingPointEdit = null;  // { switchId, pointKey, nSignal, rSignal, lineId }
+    let pendingSectionEdit = null;  // { sectionId, lineId, startSignal, endSignal }
 
     function resize() {
         const dpr = window.devicePixelRatio || 1;
@@ -177,10 +178,19 @@
             const hitS = pickSignal(mx, my);
             if (hitS) {
                 onPickedSignal(hitS.key);
-            } else {
-                pickMode = null;
-                renderPanelTop();
+                draw();
+                return;
             }
+            if (pickMode.target === 'signalOrPoint') {
+                const hitP = pickPoint(mx, my);
+                if (hitP) {
+                    onPickedPoint(hitP.switchId, hitP.pointKey);
+                    draw();
+                    return;
+                }
+            }
+            pickMode = null;
+            renderPanelTop();
             draw();
             return;
         }
@@ -337,11 +347,29 @@
     }
 
     function onPickedSignal(signalKey) {
-        if (!pickMode || !pendingPointEdit) return;
-        if (pickMode.purpose === 'nSignal') {
+        if (!pickMode) return;
+        if (pickMode.purpose === 'nSignal' && pendingPointEdit) {
             pendingPointEdit.nSignal = signalKey;
-        } else if (pickMode.purpose === 'rSignal') {
+        } else if (pickMode.purpose === 'rSignal' && pendingPointEdit) {
             pendingPointEdit.rSignal = signalKey;
+        } else if (pickMode.purpose === 'startSignal' && pendingSectionEdit) {
+            pendingSectionEdit.startSignal = signalKey;
+        } else if (pickMode.purpose === 'endSignal' && pendingSectionEdit) {
+            pendingSectionEdit.endSignal = signalKey;
+        }
+        pickMode = null;
+        renderPanelTop();
+        draw();
+    }
+
+    function onPickedPoint(switchId, pointKey) {
+        if (!pickMode) return;
+        if (pickMode.target !== 'signalOrPoint') return;
+        const key = switchId + '.' + pointKey;
+        if (pickMode.purpose === 'endSignal' && pendingSectionEdit) {
+            pendingSectionEdit.endSignal = key;
+        } else if (pickMode.purpose === 'startSignal' && pendingSectionEdit) {
+            pendingSectionEdit.startSignal = key;
         }
         pickMode = null;
         renderPanelTop();
@@ -646,6 +674,11 @@
 
     function selectItem(listKey, id) {
         selected = { list: listKey, id };
+        if (listKey === 'sections') {
+            initSectionEdit(id);
+        } else {
+            pendingSectionEdit = null;
+        }
         renderList(listKey);
         renderPanelTop();
         draw();
@@ -659,12 +692,14 @@
 
     function selectSignal(key) {
         selected = { list: 'signals', id: key };
+        pendingSectionEdit = null;
         renderPanelTop();
         draw();
     }
 
     function selectPoint(switchId, pointKey) {
         selected = { list: 'switches', id: switchId + '.' + pointKey };
+        pendingSectionEdit = null;
 
         let nSig = '';
         let rSig = '';
@@ -690,6 +725,29 @@
         pickMode = null;
         renderPanelTop();
         draw();
+    }
+
+    function initSectionEdit(sectionId) {
+        let cfg = null;
+        let lineId = null;
+        for (const lid of Object.keys(lineConfigsCache)) {
+            const c = lineConfigsCache[lid];
+            if (c && c.sections && c.sections[sectionId]) {
+                cfg = c.sections[sectionId];
+                lineId = lid;
+                break;
+            }
+        }
+        if (!cfg) {
+            pendingSectionEdit = null;
+            return;
+        }
+        pendingSectionEdit = {
+            sectionId,
+            lineId,
+            startSignal: cfg.startSignal || '',
+            endSignal: cfg.endSignal || ''
+        };
     }
 
     function renderPanelTop() {
@@ -795,22 +853,24 @@
     }
 
     function renderSectionPanel(content, sectionId) {
-        let cfg = null;
-        let lineId = null;
-        for (const lid of Object.keys(lineConfigsCache)) {
-            const c = lineConfigsCache[lid];
-            if (c && c.sections && c.sections[sectionId]) {
-                cfg = c.sections[sectionId];
-                lineId = lid;
-                break;
-            }
+        if (!pendingSectionEdit || pendingSectionEdit.sectionId !== sectionId) {
+            initSectionEdit(sectionId);
         }
-        if (!cfg) {
+        if (!pendingSectionEdit) {
             content.innerHTML = `<h3>区間</h3><div class="field">区間が見つかりません: ${escapeHtml(sectionId)}</div>`;
             return;
         }
+        const { startSignal, endSignal } = pendingSectionEdit;
         
-        const rails = cfg.rails || [];
+        let rails = [];
+        for (const lid of Object.keys(lineConfigsCache)) {
+            const c = lineConfigsCache[lid];
+            if (c && c.sections && c.sections[sectionId] && c.sections[sectionId].rails) {
+                rails = c.sections[sectionId].rails;
+                break;
+            }
+        }
+        
         const railItems = rails.map((r, i) => {
             const k = r[0] + ',' + r[1] + ',' + r[2];
             return `<div class="listRow"><span class="idx">${i + 1}</span><span class="mono">${escapeHtml(k)}</span></div>`;
@@ -818,11 +878,9 @@
         const railBlock = rails.length > 0
         ? railItems
         : '<div class="listRow empty">(レール未設定)</div>';
-        
-        const startSignal = cfg.startSignal || '';
-        const endSignal = cfg.endSignal || '';
-        const startLabel = formatSignalRef(startSignal);
-        const endLabel = formatSignalRef(endSignal);
+
+        const pickStart = pickMode && pickMode.purpose === 'startSignal';
+        const pickEnd = pickMode && pickMode.purpose === 'endSignal';
 
         content.innerHTML = `
             <h3>区間</h3>
@@ -830,19 +888,106 @@
 
             <div class="field">
                 <label>開始信号 (startSignal)</label>
-                <div class="value">${startSignal ? escapeHtml(startLabel) : '(未設定)'}</div>
+                <div class="value">${startSignal ? escapeHtml(startSignal) : '(未設定)'}</div>
+                <div class="buttonRow">
+                    <button id="btnPickStart" class="${pickStart ? 'active' : ''}">
+                        ${pickStart ? '選択中...' : '選択 (信号)'}
+                    </button>
+                    <button id="btnClearStart" class="danger" ${startSignal ? '' : 'disabled'}>削除</button>
+                </div>
             </div>
 
             <div class="field">
                 <label>終端 (endSignal)</label>
-                <div class="value">${endSignal ? escapeHtml(endLabel) : '(未設定)'}</div>
+                <div class="value">${endSignal ? escapeHtml(endSignal) : '(未設定)'}</div>
+                <div class="buttonRow">
+                    <button id="btnPickEnd" class="${pickEnd ? 'active' : ''}">
+                        ${pickEnd ? '選択中...' : '選択 (信号/分岐)'}
+                    </button>
+                    <button id="btnClearEnd" class="danger" ${endSignal ? '' : 'disabled'}>削除</button>
+                </div>
             </div>
 
             <div class="field">
                 <label>レール (${rails.length}本)</label>
                 <div class="listBoxReadonly">${railBlock}</div>
             </div>
+
+            <div class="field">
+                <button id="btnSectionSave">保存</button>
+            </div>
         `;
+
+        document.getElementById('btnPickStart').addEventListener('click', () => {
+            if (pickMode && pickMode.purpose === 'startSignal') {
+                pickMode = null;
+            } else {
+                pickMode = {
+                    target: 'signal',
+                    purpose: 'startSignal',
+                    sectionId,
+                    lineId: pendingSectionEdit.lineId
+                };
+            }
+            renderPanelTop();
+            draw();
+        });
+        document.getElementById('btnPickEnd').addEventListener('click', () => {
+            if (pickMode && pickMode.purpose === 'endSignal') {
+                pickMode = null;
+            } else {
+                pickMode = {
+                    target: 'signalOrPoint',
+                    purpose: 'endSignal',
+                    sectionId,
+                    lineId: pendingSectionEdit.lineId
+                };
+            }
+            renderPanelTop();
+            draw();
+        });
+        document.getElementById('btnClearStart').addEventListener('click', () => {
+            pendingSectionEdit.startSignal = '';
+            if (pickMode && pickMode.purpose === 'startSignal') pickMode = null;
+            renderPanelTop();
+            draw();
+        });
+        document.getElementById('btnClearEnd').addEventListener('click', () => {
+            pendingSectionEdit.endSignal = '';
+            if (pickMode && pickMode.purpose === 'endSignal') pickMode = null;
+            renderPanelTop();
+            draw();
+        });
+        document.getElementById('btnSectionSave').addEventListener('click', saveSection);
+    }
+
+    async function saveSection() {
+        if (!pendingSectionEdit) return;
+        const { sectionId, lineId, startSignal, endSignal } = pendingSectionEdit;
+        if (!lineId) {
+            alert('路線が見つかりません');
+            return;
+        }
+        try {
+            const r = await fetch('/api/section/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    lineId, sectionId,
+                    startSignal: startSignal || null,
+                    endSignal: endSignal || null
+                })
+            });
+            const res = await r.json();
+            if (!res.ok) {
+                alert('保存失敗: ' + (res.error || ''));
+                return;
+            }
+            currentVersion = -1;
+            fetchMap();
+        } catch (e) {
+            alert('通信エラー: ' + e);
+        }
     }
     function formatSignalRef(ref) {
         if (!ref) return '(未設定)';

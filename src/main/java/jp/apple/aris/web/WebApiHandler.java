@@ -81,6 +81,9 @@ public class WebApiHandler implements HttpHandler {
             case "/api/switch/update":
                 result = updateSwitchPoint(req);
                 break;
+            case "/api/section/update":
+                result = updateSection(req);
+                break;
             default:
                 sendJson(ex, 404, err("unknown endpoint"));
                 return;
@@ -275,6 +278,39 @@ public class WebApiHandler implements HttpHandler {
 
         pc.nSignal = (nSignal == null || nSignal.isEmpty()) ? null : nSignal;
         pc.rSignal = (rSignal == null || rSignal.isEmpty()) ? null : rSignal;
+
+        LineManager.saveLine(lineId);
+        LineStateManager.initializeStates();
+        ServerLineSyncHandler.broadcastLineList(
+                FMLCommonHandler.instance().getMinecraftServerInstance());
+
+        r.put("ok", true);
+        return r;
+    }
+
+    private Map<String, Object> updateSection(Map<String, Object> req) {
+        String lineId = (String) req.get("lineId");
+        String sectionId = (String) req.get("sectionId");
+        String startSignal = (String) req.get("startSignal");
+        String endSignal = (String) req.get("endSignal");
+
+        Map<String, Object> r = new HashMap<>();
+        if (lineId == null || sectionId == null) {
+            r.put("ok", false);
+            r.put("error", "lineId/sectionId required");
+            return r;
+        }
+
+        LineManager.reloadLine(lineId);
+        LineConfig cfg = LineManager.getLine(lineId);
+        if (cfg == null || cfg.sections == null || !cfg.sections.containsKey(sectionId)) {
+            r.put("ok", false);
+            r.put("error", "section not found: " + sectionId);
+            return r;
+        }
+        LineConfig.SectionConfig sc = cfg.sections.get(sectionId);
+        sc.startSignal = (startSignal == null || startSignal.isEmpty()) ? null : startSignal;
+        sc.endSignal   = (endSignal   == null || endSignal.isEmpty())   ? null : endSignal;
 
         LineManager.saveLine(lineId);
         LineStateManager.initializeStates();
