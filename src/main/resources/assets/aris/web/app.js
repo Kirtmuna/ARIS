@@ -984,6 +984,9 @@
             <div class="field">
                 <button id="btnSectionSave">保存</button>
             </div>
+            <div class="dangerZone">
+                <button id="btnSectionDelete">この区間を削除</button>
+            </div>
         `;
 
         document.getElementById('btnPickStart').addEventListener('click', () => {
@@ -1048,6 +1051,37 @@
             });
         });
         document.getElementById('btnSectionSave').addEventListener('click', saveSection);
+        document.getElementById('btnSectionDelete').addEventListener('click', () => {
+            if (!confirm('区間 "' + sectionId + '" を削除しますか？')) return;
+            deleteSection(sectionId, pendingSectionEdit.lineId);
+        });
+    }
+
+    async function deleteSection(sectionId, lineId) {
+        if (!lineId) {
+            alert('路線が見つかりません');
+            return;
+        }
+        try {
+            const r = await fetch('/api/section/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lineId, sectionId })
+            });
+            const res = await r.json();
+            if (!res.ok) {
+                alert('削除失敗: ' + (res.error || ''));
+                return;
+            }
+            selected = { list: null, id: null };
+            pendingSectionEdit = null;
+            currentVersion = -1;
+            await fetchMap();
+            renderPanelTop();
+            draw();
+        } catch (e) {
+            alert('通信エラー: ' + e);
+        }
     }
 
     async function saveSection() {
@@ -1298,9 +1332,55 @@
 
     document.querySelectorAll('.btnAdd').forEach(btn => {
         btn.addEventListener('click', () => {
-            alert('Add 機能は未実装です。\n(今後、区間/進路を新規作成するエンドポイントを追加予定)');
+            const listKey = btn.dataset.list;
+            if (listKey === 'sections') {
+                addSection();
+            } else if (listKey === 'routes') {
+                alert('進路の追加は未実装です');
+            }
         });
     });
+
+    async function addSection() {
+        const lineIds = Object.keys(lineConfigsCache);
+        if (lineIds.length === 0) {
+            alert('路線がありません');
+            return;
+        }
+        let lineId = lineIds[0];
+        if (lineIds.length > 1) {
+            const v = prompt('路線ID (' + lineIds.join(', ') + ')', lineId);
+            if (v == null) return;
+            if (!lineIds.includes(v)) {
+                alert('その路線はありません');
+                return;
+            }
+            lineId = v;
+        }
+
+        const name = prompt('区間ID');
+        if (name == null) return;
+        const sectionId = name.trim();
+        if (!sectionId) return;
+
+        try {
+            const r = await fetch('/api/section/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lineId, sectionId })
+            });
+            const res = await r.json();
+            if (!res.ok) {
+                alert('作成失敗: ' + (res.error || ''));
+                return;
+            }
+            currentVersion = -1;
+            await fetchMap();
+            selectItem('sections', sectionId);
+        } catch (e) {
+            alert('通信エラー: ' + e);
+        }
+    }
 
     let currentVersion = -1;
 

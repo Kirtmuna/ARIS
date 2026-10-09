@@ -84,6 +84,12 @@ public class WebApiHandler implements HttpHandler {
             case "/api/section/update":
                 result = updateSection(req);
                 break;
+            case "/api/section/create":
+                result = createSection(req);
+                break;
+            case "/api/section/delete":
+                result = deleteSection(req);
+                break;
             default:
                 sendJson(ex, 404, err("unknown endpoint"));
                 return;
@@ -326,6 +332,73 @@ public class WebApiHandler implements HttpHandler {
             }
             sc.rails = newRails.toArray(new int[0][]);
         }
+
+        LineManager.saveLine(lineId);
+        LineStateManager.initializeStates();
+        ServerLineSyncHandler.broadcastLineList(
+                FMLCommonHandler.instance().getMinecraftServerInstance());
+
+        r.put("ok", true);
+        return r;
+    }
+
+    private Map<String, Object> createSection(Map<String, Object> req) {
+        String lineId = (String) req.get("lineId");
+        String sectionId = (String) req.get("sectionId");
+
+        Map<String, Object> r = new HashMap<>();
+        if (lineId == null || sectionId == null || sectionId.isEmpty()) {
+            r.put("ok", false);
+            r.put("error", "lineId/sectionId required");
+            return r;
+        }
+
+        LineManager.reloadLine(lineId);
+        LineConfig cfg = LineManager.getLine(lineId);
+        if (cfg == null) {
+            r.put("ok", false);
+            r.put("error", "line not found: " + lineId);
+            return r;
+        }
+        if (cfg.sections == null) cfg.sections = new HashMap<>();
+        if (cfg.sections.containsKey(sectionId)) {
+            r.put("ok", false);
+            r.put("error", "section already exists: " + sectionId);
+            return r;
+        }
+
+        LineConfig.SectionConfig sc = new LineConfig.SectionConfig();
+        sc.rails = new int[0][];
+        cfg.sections.put(sectionId, sc);
+
+        LineManager.saveLine(lineId);
+        LineStateManager.initializeStates();
+        ServerLineSyncHandler.broadcastLineList(
+                FMLCommonHandler.instance().getMinecraftServerInstance());
+
+        r.put("ok", true);
+        return r;
+    }
+
+    private Map<String, Object> deleteSection(Map<String, Object> req) {
+        String lineId = (String) req.get("lineId");
+        String sectionId = (String) req.get("sectionId");
+
+        Map<String, Object> r = new HashMap<>();
+        if (lineId == null || sectionId == null) {
+            r.put("ok", false);
+            r.put("error", "lineId/sectionId required");
+            return r;
+        }
+
+        LineManager.reloadLine(lineId);
+        LineConfig cfg = LineManager.getLine(lineId);
+        if (cfg == null || cfg.sections == null || !cfg.sections.containsKey(sectionId)) {
+            r.put("ok", false);
+            r.put("error", "section not found: " + sectionId);
+            return r;
+        }
+        cfg.sections.remove(sectionId);
 
         LineManager.saveLine(lineId);
         LineStateManager.initializeStates();
