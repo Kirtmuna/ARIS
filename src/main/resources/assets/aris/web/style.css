@@ -199,3 +199,24 @@ main { flex: 1; display: flex; min-height: 0; }
     color: #ddd;
     word-break: break-all;
 }
+
+#panelTop .buttonRow {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+#panelTop .buttonRow button {
+    flex: 1;
+}
+#panelTop button.danger {
+    background: #4a1a1a;
+    border-color: #833;
+    color: #eee;
+}
+#panelTop button.danger:hover:not(:disabled) {
+    background: #6a2020;
+}
+#panelTop button.danger:disabled {
+    opacity: 0.4;
+    cursor: default;
+}

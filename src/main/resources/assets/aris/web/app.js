@@ -906,16 +906,22 @@
             <div class="field">
                 <label>N信号 (NORMAL時)</label>
                 <div class="value">${nSignal ? escapeHtml(nSignal) : '(未設定)'}</div>
-                <button id="btnPickN" class="${pickN ? 'active' : ''}">
-                    ${pickN ? '信号を選択中... (空クリックで解除)' : '選択'}
-                </button>
+                <div class="buttonRow">
+                    <button id="btnPickN" class="${pickN ? 'active' : ''}">
+                        ${pickN ? '選択中...' : '選択'}
+                    </button>
+                    <button id="btnClearN" class="danger" ${nSignal ? '' : 'disabled'}>削除</button>
+                </div>
             </div>
             <div class="field">
                 <label>R信号 (REVERSE時)</label>
                 <div class="value">${rSignal ? escapeHtml(rSignal) : '(未設定)'}</div>
-                <button id="btnPickR" class="${pickR ? 'active' : ''}">
-                    ${pickR ? '信号を選択中... (空クリックで解除)' : '選択'}
-                </button>
+                <div class="buttonRow">
+                    <button id="btnPickR" class="${pickR ? 'active' : ''}">
+                        ${pickR ? '選択中...' : '選択'}
+                    </button>
+                    <button id="btnClearR" class="danger" ${rSignal ? '' : 'disabled'}>削除</button>
+                </div>
             </div>
             <div class="field">
                 <button id="btnSwitchSave">保存</button>
@@ -937,6 +943,18 @@
             } else {
                 pickMode = { purpose: 'rSignal', switchId, pointKey };
             }
+            renderPanelTop();
+            draw();
+        });
+        document.getElementById('btnClearN').addEventListener('click', () => {
+            pendingPointEdit.nSignal = '';
+            if (pickMode && pickMode.purpose === 'nSignal') pickMode = null;
+            renderPanelTop();
+            draw();
+        });
+        document.getElementById('btnClearR').addEventListener('click', () => {
+            pendingPointEdit.rSignal = '';
+            if (pickMode && pickMode.purpose === 'rSignal') pickMode = null;
             renderPanelTop();
             draw();
         });
