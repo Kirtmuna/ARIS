@@ -18,6 +18,9 @@ import java.util.Set;
  * 「予約した時点でチェックし、予約されている間は他から触れない」という排他制御。
  */
 public class Cbi {
+    private static final Cbi INSTANCE = new Cbi();
+    public static Cbi get() { return INSTANCE; }
+
     private final ReservationTable table = new ReservationTable();
     /**
      * 進路の予約を試みる。

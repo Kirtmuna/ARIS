@@ -43,16 +43,13 @@ public class ArisApiUtil {
     }
 
     private static SectionState findSectionByRailKey(String railKey) {
-        for (Map<String, SectionState> sections : LineStateManager.getAllLineSections().values()) {
-            if (sections == null) continue;
-            for (SectionState sec : sections.values()) {
-                for (RailState rail : sec.getSectionRails()) {
-                    if (rail == null) continue;
-                    BlockPos p = rail.getRailPosition();
-                    String k = p.getX() + "," + p.getY() + "," + p.getZ();
-                    if (k.equals(railKey)) {
-                        return sec;
-                    }
+        for (SectionState sec : LineStateManager.getSections().values()) {
+            for (RailState rail : sec.getSectionRails()) {
+                if (rail == null) continue;
+                BlockPos p = rail.getRailPosition();
+                String k = p.getX() + "," + p.getY() + "," + p.getZ();
+                if (k.equals(railKey)) {
+                    return sec;
                 }
             }
         }

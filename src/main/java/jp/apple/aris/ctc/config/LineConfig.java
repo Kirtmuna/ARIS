@@ -3,7 +3,6 @@ package jp.apple.aris.ctc.config;
 import java.util.Map;
 
 public class LineConfig {
-    public String name; // LineName
     public Map<String, SignalConfig> signals; // 信号
     public Map<String, SwitchConfig> switches; // ポイント
     public Map<String, SectionConfig> sections; // 区間
