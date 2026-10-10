@@ -18,27 +18,31 @@ export function drawOperation() {
 
     const w2s = (x, z) => worldToScreenOn(c, state.opCamera, x, z);
     
-    // 在線の区間
-    const occupiedRailKeys = new Set();
+    const busyRailGroups = new Set();
+    
+    const markRails = (railsArr) => {
+        for (const r of (railsArr || [])) {
+            const rk = r[0] + ',' + r[1] + ',' + r[2];
+            const gk = state.railKeyToGroup[rk] || rk;
+            busyRailGroups.add(gk);
+        }
+    };
+
     if (state.lineConfig && state.lineConfig.sections) {
+        // 在線区間
         for (const [secId, secCfg] of Object.entries(state.lineConfig.sections)) {
             if (!state.opSectionOccupied[secId]) continue;
-            for (const r of (secCfg.rails || [])) {
-                occupiedRailKeys.add(r[0] + ',' + r[1] + ',' + r[2]);
-            }
+            markRails(secCfg.rails);
         }
-    }
-    // 進路で使われている区間
-    const routeRailKeys = new Set();
-    if (state.lineConfig && state.lineConfig.routes && state.lineConfig.sections) {
-        for (const [routeId, rc] of Object.entries(state.lineConfig.routes)) {
-            const st = state.opRouteStates[routeId];
-            if (st !== 'SET' && st !== 'OCCUPIED') continue;
-            for (const secId of (rc.sections || [])) {
-                const sec = state.lineConfig.sections[secId];
-                if (!sec) continue;
-                for (const r of (sec.rails || [])) {
-                    routeRailKeys.add(r[0] + ',' + r[1] + ',' + r[2]);
+        // 進路使用中の区間 
+        if (state.lineConfig.routes) {
+            for (const [routeId, rc] of Object.entries(state.lineConfig.routes)) {
+                const st = state.opRouteStates[routeId];
+                if (st !== 'SET' && st !== 'OCCUPIED') continue;
+                for (const secId of (rc.sections || [])) {
+                    const sec = state.lineConfig.sections[secId];
+                    if (!sec) continue;
+                    markRails(sec.rails);
                 }
             }
         }
@@ -51,7 +55,7 @@ export function drawOperation() {
     ctx.lineCap = 'round';
     for (const r of state.rails) {
         const isSwitch = switchRailKeys.has(r.key);
-        const isBusy = occupiedRailKeys.has(r.key) || routeRailKeys.has(r.key);
+        const isBusy = busyRailGroups.has(r.groupKey) || busyRailGroups.has(r.key);
         if (isBusy) {
             ctx.strokeStyle = '#ff3030';
             ctx.lineWidth = 4;
