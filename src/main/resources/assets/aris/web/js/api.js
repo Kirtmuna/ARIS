@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { syncItemsFromServer, renderList } from './config/tree.js';
 import { draw } from './config/map.js';
 import { drawOperation } from './operation/map.js';
+import { renderRouteList } from './operation/route_list.js';
 
 export async function fetchMap() {
     try {
@@ -30,6 +31,7 @@ export async function fetchMap() {
         renderList('routes');
         draw();
         drawOperation();
+        renderRouteList();
     } catch (e) { console.error(e); }
 }
 
@@ -62,6 +64,7 @@ export async function fetchState() {
             }
         }
         drawOperation();
+        renderRouteList();
     } catch (e) { console.error(e); }
 }
 

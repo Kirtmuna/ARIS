@@ -10,6 +10,7 @@ addSection, addRoute
 } from './config/edit.js';
 import { fetchMap, pollVersion, pollState } from './api.js';
 import { initOperation, drawOperation } from './operation/map.js';
+import { initRouteList } from './operation/route_list.js';
 
 // 設定ページ canvas
 state.canvas = document.getElementById('map');
@@ -17,6 +18,8 @@ state.ctx = state.canvas.getContext('2d');
 
 // 操作ページ canvas
 initOperation(document.getElementById('opMap'));
+// 操作ページ 進路リスト
+initRouteList(document.getElementById('opRouteList'));
 // クリック選択
 state.canvas.addEventListener('mousedown', e => {
     state.clickStart = { x: e.clientX, y: e.clientY };
