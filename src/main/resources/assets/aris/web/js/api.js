@@ -1,6 +1,7 @@
 import { state } from './state.js';
-import { syncItemsFromServer, renderList } from './tree.js';
-import { draw } from './map.js';
+import { syncItemsFromServer, renderList } from './config/tree.js';
+import { draw } from './config/map.js';
+import { drawOperation } from './operation/map.js';
 
 export async function fetchMap() {
     try {
@@ -28,6 +29,39 @@ export async function fetchMap() {
         renderList('sections');
         renderList('routes');
         draw();
+        drawOperation();
+    } catch (e) { console.error(e); }
+}
+
+export async function fetchState() {
+    try {
+        const r = await fetch('/api/state');
+        const data = await r.json();
+        state.opRouteStates = {};
+        if (data.routes) {
+            for (const [id, v] of Object.entries(data.routes)) {
+                state.opRouteStates[id] = v.status;
+            }
+        }
+        state.opSectionOccupied = {};
+        if (data.sections) {
+            for (const [id, v] of Object.entries(data.sections)) {
+                state.opSectionOccupied[id] = !!v.occupied;
+            }
+        }
+        state.opSignalAspects = {};
+        if (data.signals) {
+            for (const [id, v] of Object.entries(data.signals)) {
+                state.opSignalAspects[id] = v.aspect;
+            }
+        }
+        state.opPointPositions = {};
+        if (data.points) {
+            for (const [id, v] of Object.entries(data.points)) {
+                state.opPointPositions[id] = v.position;
+            }
+        }
+        drawOperation();
     } catch (e) { console.error(e); }
 }
 
@@ -41,4 +75,11 @@ export async function pollVersion() {
         }
     } catch (e) {}
     setTimeout(pollVersion, 3000);
+}
+
+export async function pollState() {
+    try {
+        await fetchState();
+    } catch (e) {}
+    setTimeout(pollState, 2000);
 }

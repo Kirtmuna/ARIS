@@ -1,18 +1,22 @@
 import { state } from './state.js';
 import { resizeCanvas } from './viewport.js';
 import { setupCamera } from './camera.js';
-import { draw, pickSignal, pickPoint, pickRail } from './map.js';
-import { loadTreeState, renderList, saveTreeState, newFolderId } from './tree.js';
-import { renderPanelTop } from './panel.js';
+import { draw, pickSignal, pickPoint, pickRail } from './config/map.js';
+import { loadTreeState, renderList, saveTreeState, newFolderId } from './config/tree.js';
+import { renderPanelTop } from './config/panel.js';
 import {
 selectSignal, selectPoint, onPickedSignal, onPickedPoint, onPickedRail,
 addSection, addRoute
-} from './edit.js';
-import { fetchMap, pollVersion } from './api.js';
+} from './config/edit.js';
+import { fetchMap, pollVersion, pollState } from './api.js';
+import { initOperation, drawOperation } from './operation/map.js';
 
+// 設定ページ canvas
 state.canvas = document.getElementById('map');
 state.ctx = state.canvas.getContext('2d');
 
+// 操作ページ canvas
+initOperation(document.getElementById('opMap'));
 // クリック選択
 state.canvas.addEventListener('mousedown', e => {
     state.clickStart = { x: e.clientX, y: e.clientY };
@@ -122,8 +126,14 @@ function setupPageNav() {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             const target = document.getElementById('page-' + btn.dataset.page);
             if (target) target.classList.add('active');
-            resizeCanvas();
-            draw();
+            
+            if (btn.dataset.page === 'config') {
+                resizeCanvas(state.canvas, state.ctx);
+                draw();
+            } else if (btn.dataset.page === 'operation') {
+                resizeCanvas(state.opCanvas, state.opCtx);
+                drawOperation();
+            }
         });
     });
 }
@@ -131,8 +141,18 @@ function setupPageNav() {
 // 初期化
 loadTreeState();
 renderPanelTop();
-window.addEventListener('resize', () => { resizeCanvas(); draw(); });
-resizeCanvas();
-setupCamera();
+window.addEventListener('resize', () => {
+    resizeCanvas(state.canvas, state.ctx);
+    draw();
+    resizeCanvas(state.opCanvas, state.opCtx);
+    drawOperation();
+});
+resizeCanvas(state.canvas, state.ctx);
+resizeCanvas(state.opCanvas, state.opCtx);
+setupCamera(state.canvas, state.camera, draw);
+setupCamera(state.opCanvas, state.opCamera, drawOperation);
 setupPageNav();
-fetchMap().then(() => pollVersion());
+fetchMap().then(() => {
+    pollVersion();
+    pollState();
+});

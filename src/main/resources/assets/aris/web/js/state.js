@@ -1,4 +1,5 @@
 export const state = {
+    // ===== 設定ページ =====
     canvas: null,
     ctx: null,
     camera: { x: 0, y: 0, scale: 1.5 },
@@ -23,7 +24,18 @@ export const state = {
     treeState: {
         sections: { folders: {}, assignments: {}, order: [] },
         routes:   { folders: {}, assignments: {}, order: [] }
-    }
+    },
+    // ===== 操作ページ =====
+    opCanvas: null,
+    opCtx: null,
+    opCamera: { x: 0, y: 0, scale: 1.5 },
+    opRouteStates: {},        // routeId -> "IDLE"|"SET"|"OCCUPIED"
+    opSectionOccupied: {},    // sectionId -> bool
+    opSignalAspects: {},      // signalId -> aspect
+    opPointPositions: {},     // switchId -> "NORMAL"|"REVERSE"|"UNKNOWN"
+    opCurrentVersion: -1,
+    opDragging: false,
+    opLastMouse: { x: 0, y: 0 }
 };
 
 export const STORAGE_KEY = 'aris.tree.v1';

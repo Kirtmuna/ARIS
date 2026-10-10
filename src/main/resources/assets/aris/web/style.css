@@ -293,3 +293,7 @@ header nav button.active {
     color: #666;
     font-size: 14px;
 }
+/* 操作ページ */
+#opMapWrap { flex: 1; position: relative; background: #050505; min-width: 0; }
+#opMap { display: block; width: 100%; height: 100%; cursor: grab; }
+#opMap:active { cursor: grabbing; }

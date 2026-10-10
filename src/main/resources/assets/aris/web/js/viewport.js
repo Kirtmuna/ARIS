@@ -1,17 +1,22 @@
 import { state } from './state.js';
 
-export function worldToScreen(x, z) {
-    const c = state.canvas;
+/**
+ * 指定canvas+cameraで、ワールド座標を画面座標に変換する。
+ */
+export function worldToScreenOn(canvas, camera, x, z) {
     return [
-        (x - state.camera.x) * state.camera.scale + c.clientWidth / 2,
-        (z - state.camera.y) * state.camera.scale + c.clientHeight / 2
+        (x - camera.x) * camera.scale + canvas.clientWidth / 2,
+        (z - camera.y) * camera.scale + canvas.clientHeight / 2
     ];
 }
+/** 設定ページ用（state.canvas / state.camera） */
+export function worldToScreen(x, z) {
+    return worldToScreenOn(state.canvas, state.camera, x, z);
+}
 
-export function resizeCanvas() {
-    const c = state.canvas;
+export function resizeCanvas(canvas, ctx) {
     const dpr = window.devicePixelRatio || 1;
-    c.width = c.clientWidth * dpr;
-    c.height = c.clientHeight * dpr;
-    state.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    canvas.width = canvas.clientWidth * dpr;
+    canvas.height = canvas.clientHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
