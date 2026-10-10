@@ -189,20 +189,36 @@ public class ArisMapCache {
                     changed = true;
                 }
                 
-                if (!lineConfig.switches.containsKey(key) && !entry.points.isEmpty()) {
-                    LineConfig.SwitchConfig sc = new LineConfig.SwitchConfig();
-                    sc.points = new HashMap<>();
-                    for (PointEntry pe : entry.points) {
-                        LineConfig.SwitchConfig.PointConfig pc =
-                                new LineConfig.SwitchConfig.PointConfig();
-                        pc.nSignal = null;
-                        pc.rSignal = null;
-                        sc.points.put(pe.key, pc);
+                if (!entry.points.isEmpty()) {
+                    LineConfig.SwitchConfig sc = lineConfig.switches.get(key);
+                    if (sc == null) {
+                        sc = new LineConfig.SwitchConfig();
+                        sc.points = new HashMap<>();
+                        lineConfig.switches.put(key, sc);
                     }
-                    lineConfig.switches.put(key, sc);
-                    lineConfigChanged = true;
-                    ArisCore.LOGGER.info("ARIS: 分岐 '{}' を自動登録しました ({}ポイント)",
-                            key, entry.points.size());
+                    if (sc.points == null) sc.points = new HashMap<>();
+                    
+                    for (PointEntry pe : entry.points) {
+                        if (!sc.points.containsKey(pe.key)) {
+                            LineConfig.SwitchConfig.PointConfig pc = new LineConfig.SwitchConfig.PointConfig();
+                            pc.nSignal = null;
+                            pc.rSignal = null;
+                            sc.points.put(pe.key, pc);
+                            lineConfigChanged = true;
+                            ArisCore.LOGGER.info("ARIS: 分岐 '{}' にポイント '{}' を追加登録しました", key, pe.key);
+                        }
+                    }
+                    Set<String> aliveKeys = new HashSet<>();
+                    for (PointEntry pe : entry.points) aliveKeys.add(pe.key);
+                    Iterator<String> it = sc.points.keySet().iterator();
+                    while (it.hasNext()) {
+                        String pk = it.next();
+                        if (!aliveKeys.contains(pk)) {
+                            it.remove();
+                            lineConfigChanged = true;
+                            ArisCore.LOGGER.info("ARIS: 分岐 '{}' のポイント '{}' を自動削除しました", key, pk);
+                        }
+                    }
                 }
 
                 String groupKey = computeGroupKey(core, key);
