@@ -1,6 +1,6 @@
-import { state } from './state.js';
-import { worldToScreen } from './viewport.js';
-import { aspectColor, distToSegmentSq } from './util.js';
+import { state } from '../state.js';
+import { worldToScreen } from '../viewport.js';
+import { aspectColor, distToSegmentSq } from '../util.js';
 
 export function draw() {
     const c = state.canvas;

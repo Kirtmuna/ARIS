@@ -1,4 +1,4 @@
-import { state, STORAGE_KEY } from './state.js';
+import { state, STORAGE_KEY } from '../state.js';
 import { selectItem, selectFolder } from './edit.js';
 import { renderPanelTop } from './panel.js';
 

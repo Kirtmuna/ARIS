@@ -1,5 +1,5 @@
-import { state } from './state.js';
-import { escapeHtml } from './util.js';
+import { state } from '../state.js';
+import { escapeHtml } from '../util.js';
 import { renderList, deleteFolder } from './tree.js';
 import { draw } from './map.js';
 import {

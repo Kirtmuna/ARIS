@@ -1,8 +1,8 @@
-import { state } from './state.js';
+import { state } from '../state.js';
 import { renderPanelTop, initSectionEdit, initRouteEdit } from './panel.js';
 import { renderList } from './tree.js';
 import { draw } from './map.js';
-import { fetchMap } from './api.js';
+import { fetchMap } from '../api.js';
 
 export function selectItem(listKey, id) {
     state.selected = { list: listKey, id };
