@@ -300,6 +300,11 @@ public class ArisMapCache {
                 sigIt.remove();
                 signalAspects.remove(e.getKey());
                 changed = true;
+                if (lineConfig.signals != null
+                        && lineConfig.signals.remove(e.getKey()) != null) {
+                    lineConfigChanged = true;
+                    ArisCore.LOGGER.info("ARIS: 信号 '{}' を自動削除しました", e.getKey());
+                }
             }
         }
         Iterator<Map.Entry<String, SwitchEntry>> swIt = switches.entrySet().iterator();
@@ -310,6 +315,11 @@ public class ArisMapCache {
             if (pos != null && world.isBlockLoaded(pos)) {
                 swIt.remove();
                 changed = true;
+                if (lineConfig.switches != null
+                        && lineConfig.switches.remove(e.getKey()) != null) {
+                    lineConfigChanged = true;
+                    ArisCore.LOGGER.info("ARIS: 分岐 '{}' を自動削除しました", e.getKey());
+                }
             }
         }
 
