@@ -257,3 +257,39 @@ main { flex: 1; display: flex; min-height: 0; }
 #panelTop .buttonRow select:disabled {
     opacity: 0.4;
 }
+
+/* ページ切替 */
+header nav {
+    display: flex;
+    gap: 4px;
+    margin-left: 8px;
+}
+header nav button {
+    background: #1a1a1a;
+    color: #ccc;
+    border: 1px solid #333;
+}
+header nav button.active {
+    background: #2a4a6a;
+    border-color: #44ccff;
+    color: #fff;
+}
+
+.page {
+    display: none;
+    flex: 1;
+    min-height: 0;
+}
+.page.active {
+    display: flex;
+}
+
+/* 操作ページ */
+.operationPlaceholder {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-size: 14px;
+}

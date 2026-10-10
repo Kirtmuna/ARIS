@@ -112,7 +112,21 @@ document.querySelectorAll('.btnAdd').forEach(btn => {
     });
 });
 
-document.getElementById('btnRefresh').addEventListener('click', fetchMap);
+// ページ切替
+function setupPageNav() {
+    const buttons = document.querySelectorAll('#pageNav button');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            const target = document.getElementById('page-' + btn.dataset.page);
+            if (target) target.classList.add('active');
+            resizeCanvas();
+            draw();
+        });
+    });
+}
 
 // 初期化
 loadTreeState();
@@ -120,4 +134,5 @@ renderPanelTop();
 window.addEventListener('resize', () => { resizeCanvas(); draw(); });
 resizeCanvas();
 setupCamera();
+setupPageNav();
 fetchMap().then(() => pollVersion());
