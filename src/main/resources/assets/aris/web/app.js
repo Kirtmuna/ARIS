@@ -11,12 +11,12 @@
     let routesData = [];
     let dragging = false;
     let lastMouse = { x: 0, y: 0 };
-    let lineConfigsCache = {};
+    let lineConfig = null;
     let railKeyToGroup = {};  // railKey -> groupKey
-    let pickMode = null;  // { purpose: 'nSignal'|'rSignal', switchId, pointKey }
-    let pendingPointEdit = null;  // { switchId, pointKey, nSignal, rSignal, lineId }
-    let pendingSectionEdit = null;  // { sectionId, lineId, startSignal, endSignal, rails }
-    let pendingRouteEdit = null;    // { routeId, lineId, sections, nPoint, rPoint }
+    let pickMode = null;
+    let pendingPointEdit = null;    // { switchId, pointKey, nSignal, rSignal }
+    let pendingSectionEdit = null;  // { sectionId, startSignal, endSignal, rails }
+    let pendingRouteEdit = null;    // { routeId, sections, nPoint, rPoint }
 
     function resize() {
         const dpr = window.devicePixelRatio || 1;
@@ -54,7 +54,7 @@
         const switchRailKeys = new Set(
             switches.map(sw => sw.pos[0] + ',' + sw.pos[1] + ',' + sw.pos[2])
         );
-        
+
         const selectedSectionRailKeys = new Set();
         if (selected.list === 'sections' && pendingSectionEdit) {
             const groupKeys = new Set();
@@ -118,16 +118,16 @@
 
                 const skey = Math.floor(s.pos[0]) + ',' + Math.floor(s.pos[1]) + ',' + Math.floor(s.pos[2]);
                 const isSelected = (skey === selectedSignalKey);
-                
+
                 ctx.fillStyle = aspectColor(s.aspect);
                 ctx.beginPath();
                 ctx.arc(sx, sy, signalRadius, 0, Math.PI * 2);
                 ctx.fill();
-                
+
                 ctx.strokeStyle = 'rgba(0,0,0,0.6)';
                 ctx.lineWidth = signalOutline;
                 ctx.stroke();
-                
+
                 if (isSelected) {
                     ctx.beginPath();
                     ctx.arc(sx, sy, signalRadius + signalOutline + 3, 0, Math.PI * 2);
@@ -361,7 +361,7 @@
         if (!best) return null;
         return { switchId: best.switchId, pointKey: best.pointKey };
     }
-    
+
     function pickRail(mx, my) {
         const sizeRatio = Math.min(1, camera.scale / 1.5);
         const hitRadius = 12 * sizeRatio + 4;
@@ -417,7 +417,7 @@
     function onPickedPoint(switchId, pointKey) {
         if (!pickMode) return;
         const key = switchId + '.' + pointKey;
-        
+
         if (pickMode.target === 'signalOrPoint' && pendingSectionEdit) {
             if (pickMode.purpose === 'endSignal') {
                 pendingSectionEdit.endSignal = key;
@@ -803,41 +803,22 @@
 
         let nSig = '';
         let rSig = '';
-        let lineId = null;
-        for (const lid of Object.keys(lineConfigsCache)) {
-            const cfg = lineConfigsCache[lid];
-            if (cfg && cfg.switches && cfg.switches[switchId]
-            && cfg.switches[switchId].points
-            && cfg.switches[switchId].points[pointKey]) {
-                const p = cfg.switches[switchId].points[pointKey];
-                nSig = p.nSignal || '';
-                rSig = p.rSignal || '';
-                lineId = lid;
-                break;
-            }
-        }
-        if (!lineId) {
-            const ids = Object.keys(lineConfigsCache);
-            if (ids.length > 0) lineId = ids[0];
+        if (lineConfig && lineConfig.switches && lineConfig.switches[switchId]
+        && lineConfig.switches[switchId].points
+        && lineConfig.switches[switchId].points[pointKey]) {
+            const p = lineConfig.switches[switchId].points[pointKey];
+            nSig = p.nSignal || '';
+            rSig = p.rSignal || '';
         }
 
-        pendingPointEdit = { switchId, pointKey, nSignal: nSig, rSignal: rSig, lineId };
+        pendingPointEdit = { switchId, pointKey, nSignal: nSig, rSignal: rSig };
         pickMode = null;
         renderPanelTop();
         draw();
     }
 
     function initSectionEdit(sectionId) {
-        let cfg = null;
-        let lineId = null;
-        for (const lid of Object.keys(lineConfigsCache)) {
-            const c = lineConfigsCache[lid];
-            if (c && c.sections && c.sections[sectionId]) {
-                cfg = c.sections[sectionId];
-                lineId = lid;
-                break;
-            }
-        }
+        const cfg = (lineConfig && lineConfig.sections) ? lineConfig.sections[sectionId] : null;
         if (!cfg) {
             pendingSectionEdit = null;
             return;
@@ -845,7 +826,6 @@
         const railsCopy = (cfg.rails || []).map(r => [r[0], r[1], r[2]]);
         pendingSectionEdit = {
             sectionId,
-            lineId,
             startSignal: cfg.startSignal || '',
             endSignal: cfg.endSignal || '',
             rails: railsCopy
@@ -853,16 +833,7 @@
     }
 
     function initRouteEdit(routeId) {
-        let cfg = null;
-        let lineId = null;
-        for (const lid of Object.keys(lineConfigsCache)) {
-            const c = lineConfigsCache[lid];
-            if (c && c.routes && c.routes[routeId]) {
-                cfg = c.routes[routeId];
-                lineId = lid;
-                break;
-            }
-        }
+        const cfg = (lineConfig && lineConfig.routes) ? lineConfig.routes[routeId] : null;
         if (!cfg) {
             pendingRouteEdit = null;
             return;
@@ -870,7 +841,7 @@
         const sections = (cfg.sections || []).slice();
         const nPoint = (cfg.route && cfg.route.nPoint) ? cfg.route.nPoint.slice() : [];
         const rPoint = (cfg.route && cfg.route.rPoint) ? cfg.route.rPoint.slice() : [];
-        pendingRouteEdit = { routeId, lineId, sections, nPoint, rPoint };
+        pendingRouteEdit = { routeId, sections, nPoint, rPoint };
     }
 
     function renderPanelTop() {
@@ -926,14 +897,8 @@
         const x = parts[0], y = parts[1], z = parts[2];
 
         let currentType = '';
-        let foundLineId = null;
-        for (const lineId of Object.keys(lineConfigsCache)) {
-            const cfg = lineConfigsCache[lineId];
-            if (cfg && cfg.signals && cfg.signals[key]) {
-                currentType = cfg.signals[key].type || '';
-                foundLineId = lineId;
-                break;
-            }
+        if (lineConfig && lineConfig.signals && lineConfig.signals[key]) {
+            currentType = lineConfig.signals[key].type || '';
         }
 
         const types = [
@@ -981,7 +946,7 @@
             return;
         }
         const { startSignal, endSignal, rails } = pendingSectionEdit;
-        
+
         const railItems = rails.map((r, i) => {
             const k = r[0] + ',' + r[1] + ',' + r[2];
             return `<div class="listRow">
@@ -1052,8 +1017,7 @@
                 pickMode = {
                     target: 'signal',
                     purpose: 'startSignal',
-                    sectionId,
-                    lineId: pendingSectionEdit.lineId
+                    sectionId
                 };
             }
             renderPanelTop();
@@ -1066,8 +1030,7 @@
                 pickMode = {
                     target: 'signalOrPoint',
                     purpose: 'endSignal',
-                    sectionId,
-                    lineId: pendingSectionEdit.lineId
+                    sectionId
                 };
             }
             renderPanelTop();
@@ -1109,7 +1072,7 @@
         document.getElementById('btnSectionSave').addEventListener('click', saveSection);
         document.getElementById('btnSectionDelete').addEventListener('click', () => {
             if (!confirm('区間 "' + sectionId + '" を削除しますか？')) return;
-            deleteSection(sectionId, pendingSectionEdit.lineId);
+            deleteSection(sectionId);
         });
     }
 
@@ -1230,8 +1193,7 @@
                 pickMode = {
                     target: 'pointOnly',
                     purpose: 'nPoint',
-                    routeId,
-                    lineId: pendingRouteEdit.lineId
+                    routeId
                 };
             }
             renderPanelTop();
@@ -1244,8 +1206,7 @@
                 pickMode = {
                     target: 'pointOnly',
                     purpose: 'rPoint',
-                    routeId,
-                    lineId: pendingRouteEdit.lineId
+                    routeId
                 };
             }
             renderPanelTop();
@@ -1273,11 +1234,11 @@
         document.getElementById('btnRouteSave').addEventListener('click', saveRoute);
         document.getElementById('btnRouteDelete').addEventListener('click', () => {
             if (!confirm('進路 "' + routeId + '" を削除しますか？')) return;
-            deleteRoute(routeId, pendingRouteEdit.lineId);
+            deleteRoute(routeId);
         });
     }
 
-    async function deleteSection(sectionId, lineId) {
+    async function deleteSection(sectionId) {
         if (!lineId) {
             alert('路線が見つかりません');
             return;
@@ -1286,7 +1247,7 @@
             const r = await fetch('/api/section/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lineId, sectionId })
+                body: JSON.stringify({ sectionId })
             });
             const res = await r.json();
             if (!res.ok) {
@@ -1306,11 +1267,7 @@
 
     async function saveRoute() {
         if (!pendingRouteEdit) return;
-        const { routeId, lineId, sections, nPoint, rPoint } = pendingRouteEdit;
-        if (!lineId) {
-            alert('路線が見つかりません');
-            return;
-        }
+        const { routeId, sections, nPoint, rPoint } = pendingRouteEdit;
 
         const idInput = document.getElementById('routeIdInput');
         const newId = idInput ? idInput.value.trim() : routeId;
@@ -1321,7 +1278,7 @@
                 const rr = await fetch('/api/route/rename', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ lineId, oldId: routeId, newId })
+                    body: JSON.stringify({ oldId: routeId, newId })
                 });
                 const rres = await rr.json();
                 if (!rres.ok) {
@@ -1340,7 +1297,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    lineId, routeId: currentId,
+                    routeId: currentId,
                     sections, nPoint, rPoint
                 })
             });
@@ -1360,16 +1317,12 @@
         }
     }
 
-    async function deleteRoute(routeId, lineId) {
-        if (!lineId) {
-            alert('路線が見つかりません');
-            return;
-        }
+    async function deleteRoute(routeId) {
         try {
             const r = await fetch('/api/route/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lineId, routeId })
+                body: JSON.stringify({ routeId })
             });
             const res = await r.json();
             if (!res.ok) {
@@ -1388,22 +1341,6 @@
     }
 
     async function addRoute() {
-        const lineIds = Object.keys(lineConfigsCache);
-        if (lineIds.length === 0) {
-            alert('路線がありません');
-            return;
-        }
-        let lineId = lineIds[0];
-        if (lineIds.length > 1) {
-            const v = prompt('路線ID (' + lineIds.join(', ') + ')', lineId);
-            if (v == null) return;
-            if (!lineIds.includes(v)) {
-                alert('その路線はありません');
-                return;
-            }
-            lineId = v;
-        }
-
         const name = prompt('進路ID');
         if (name == null) return;
         const routeId = name.trim();
@@ -1413,7 +1350,7 @@
             const r = await fetch('/api/route/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lineId, routeId })
+                body: JSON.stringify({ routeId })
             });
             const res = await r.json();
             if (!res.ok) {
@@ -1430,12 +1367,8 @@
 
     async function saveSection() {
         if (!pendingSectionEdit) return;
-        const { sectionId, lineId, startSignal, endSignal, rails } = pendingSectionEdit;
-        if (!lineId) {
-            alert('路線が見つかりません');
-            return;
-        }
-        
+        const { sectionId, startSignal, endSignal, rails } = pendingSectionEdit;
+
         const idInput = document.getElementById('sectionIdInput');
         const newId = idInput ? idInput.value.trim() : sectionId;
         let currentId = sectionId;
@@ -1445,7 +1378,7 @@
                 const rr = await fetch('/api/section/rename', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ lineId, oldId: sectionId, newId })
+                    body: JSON.stringify({ oldId: sectionId, newId })
                 });
                 const rres = await rr.json();
                 if (!rres.ok) {
@@ -1464,7 +1397,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    lineId, sectionId: currentId,
+                    sectionId: currentId,
                     startSignal: startSignal || null,
                     endSignal: endSignal || null,
                     rails: rails
@@ -1487,28 +1420,11 @@
     }
 
     async function saveSignal(key, type) {
-        let targetLineId = null;
-        for (const lineId of Object.keys(lineConfigsCache)) {
-            const cfg = lineConfigsCache[lineId];
-            if (cfg && cfg.signals && cfg.signals[key]) {
-                targetLineId = lineId;
-                break;
-            }
-        }
-        if (!targetLineId) {
-            const ids = Object.keys(lineConfigsCache);
-            if (ids.length === 0) {
-                alert('路線がありません');
-                return;
-            }
-            targetLineId = ids[0];
-        }
-
         try {
             const r = await fetch('/api/signal/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lineId: targetLineId, key, type })
+                body: JSON.stringify({ key, type })
             });
             const res = await r.json();
             if (!res.ok) {
@@ -1596,18 +1512,14 @@
 
     async function saveSwitchPoint() {
         if (!pendingPointEdit) return;
-        const { switchId, pointKey, nSignal, rSignal, lineId } = pendingPointEdit;
-        if (!lineId) {
-            alert('路線が見つかりません');
-            return;
-        }
+        const { switchId, pointKey, nSignal, rSignal } = pendingPointEdit;
 
         try {
             const r = await fetch('/api/switch/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    lineId, switchId, pointKey,
+                    switchId, pointKey,
                     nSignal: nSignal || null,
                     rSignal: rSignal || null
                 })
@@ -1706,22 +1618,6 @@
     });
 
     async function addSection() {
-        const lineIds = Object.keys(lineConfigsCache);
-        if (lineIds.length === 0) {
-            alert('路線がありません');
-            return;
-        }
-        let lineId = lineIds[0];
-        if (lineIds.length > 1) {
-            const v = prompt('路線ID (' + lineIds.join(', ') + ')', lineId);
-            if (v == null) return;
-            if (!lineIds.includes(v)) {
-                alert('その路線はありません');
-                return;
-            }
-            lineId = v;
-        }
-
         const name = prompt('区間ID');
         if (name == null) return;
         const sectionId = name.trim();
@@ -1731,7 +1627,7 @@
             const r = await fetch('/api/section/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lineId, sectionId })
+                body: JSON.stringify({ sectionId })
             });
             const res = await r.json();
             if (!res.ok) {
@@ -1781,7 +1677,7 @@
             }
 
             points = data.points || [];
-            lineConfigsCache = data.lineConfigs || {};
+            lineConfig = data.lineConfig || null;
             syncItemsFromServer();
             renderList('sections');
             renderList('routes');

@@ -3,10 +3,9 @@ package jp.apple.aris.web;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import jp.apple.aris.ArisCore;
-import jp.apple.aris.ctc.config.LineManager;
 import jp.apple.aris.ctc.state.LineStateManager;
 import jp.apple.aris.ctc.state.SignalState;
-import jp.apple.aris.util.ArisDir;
+import jp.apple.aris.ArisDir;
 import jp.ngt.rtm.electric.TileEntitySignal;
 import jp.ngt.rtm.rail.TileEntityLargeRailCore;
 import jp.ngt.rtm.rail.TileEntityLargeRailSwitchCore;
@@ -290,10 +289,8 @@ public class ArisMapCache {
         }
 
         // 現示の反映
-        for (String lineId : LineManager.getAllLines().keySet()) {
-            Map<String, SignalState> sigs =
-                    LineStateManager.getSignals(lineId);
-            if (sigs == null) continue;
+        Map<String, SignalState> sigs = LineStateManager.getSignals();
+        if (sigs != null) {
             for (SignalState sig : sigs.values()) {
                 for (BlockPos sp : sig.getSignalPositions()) {
                     String key = sp.getX() + "," + sp.getY() + "," + sp.getZ();
@@ -394,9 +391,7 @@ public class ArisMapCache {
     }
     
     private File getCacheFile() {
-        File dir = new File(ArisDir.lineDirectory.getParentFile(), "cache");
-        if (!dir.exists()) dir.mkdirs();
-        return new File(dir, "map.json");
+        return new File(ArisDir.cacheDirectory, "map.json");
     }
     
     public synchronized void load() {

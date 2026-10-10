@@ -188,11 +188,7 @@ public class WebApiHandler implements HttpHandler {
 
         List<String> sectionIds = new ArrayList<>();
         List<String> routeIds = new ArrayList<>();
-        Map<String, Object> lineConfigs = new HashMap<>();
         List<Map<String, Object>> pointMarks = new ArrayList<>();
-
-        MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
-        WorldServer world = server != null ? server.getWorld(0) : null;
 
         for (Map<String, Object> sw : ArisMapCache.get().getSwitchKeys()) {
             String switchKey = (String) sw.get("key");
@@ -210,54 +206,44 @@ public class WebApiHandler implements HttpHandler {
             }
         }
 
-        for (String lineId : LineManager.getAllLines().keySet()) {
-            LineConfig cfg = LineManager.getLine(lineId);
-            if (cfg == null) continue;
+        LineConfig cfg = LineManager.getConfig();
+        if (cfg != null) {
             if (cfg.sections != null) sectionIds.addAll(cfg.sections.keySet());
             if (cfg.routes != null) routeIds.addAll(cfg.routes.keySet());
-            lineConfigs.put(lineId, cfg);
         }
         m.put("sections", sectionIds);
         m.put("routes", routeIds);
-        m.put("lineConfigs", lineConfigs);
+        m.put("lineConfig", cfg);
         m.put("points", pointMarks);
         return m;
     }
-    
+
     private Map<String, Object> updateSignal(Map<String, Object> req) {
-        String lineId = (String) req.get("lineId");
         String key = (String) req.get("key");
         String type = (String) req.get("type");
 
         Map<String, Object> r = new HashMap<>();
-        if (lineId == null || key == null) {
+        if (key == null) {
             r.put("ok", false);
-            r.put("error", "lineId/key required");
+            r.put("error", "key required");
             return r;
         }
 
-        LineManager.reloadLine(lineId);
-        LineConfig cfg = LineManager.getLine(lineId);
-        if (cfg == null) {
-            r.put("ok", false);
-            r.put("error", "line not found: " + lineId);
-            return r;
-        }
+        LineManager.reload();
+        LineConfig cfg = LineManager.getConfig();
+        if (cfg.signals == null) cfg.signals = new HashMap<>();
 
         if (type == null || type.isEmpty()) {
-            if (cfg.signals != null) {
-                cfg.signals.remove(key);
-            }
+            cfg.signals.remove(key);
         } else {
-            if (cfg.signals == null) cfg.signals = new HashMap<>();
             LineConfig.SignalConfig sc = new LineConfig.SignalConfig();
             sc.type = type;
             cfg.signals.put(key, sc);
         }
 
-        LineManager.saveLine(lineId);
+        LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLineList(
+        ServerLineSyncHandler.broadcastLine(
                 FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
@@ -265,26 +251,20 @@ public class WebApiHandler implements HttpHandler {
     }
 
     private Map<String, Object> updateSwitchPoint(Map<String, Object> req) {
-        String lineId = (String) req.get("lineId");
         String switchId = (String) req.get("switchId");
         String pointKey = (String) req.get("pointKey");
         String nSignal = (String) req.get("nSignal");
         String rSignal = (String) req.get("rSignal");
 
         Map<String, Object> r = new HashMap<>();
-        if (lineId == null || switchId == null || pointKey == null) {
+        if (switchId == null || pointKey == null) {
             r.put("ok", false);
-            r.put("error", "lineId/switchId/pointKey required");
+            r.put("error", "switchId/pointKey required");
             return r;
         }
 
-        LineManager.reloadLine(lineId);
-        LineConfig cfg = LineManager.getLine(lineId);
-        if (cfg == null) {
-            r.put("ok", false);
-            r.put("error", "line not found: " + lineId);
-            return r;
-        }
+        LineManager.reload();
+        LineConfig cfg = LineManager.getConfig();
         if (cfg.switches == null) cfg.switches = new HashMap<>();
         if (!cfg.switches.containsKey(switchId)) {
             cfg.switches.put(switchId, new LineConfig.SwitchConfig());
@@ -296,13 +276,12 @@ public class WebApiHandler implements HttpHandler {
             sc.points.put(pointKey, new LineConfig.SwitchConfig.PointConfig());
         }
         LineConfig.SwitchConfig.PointConfig pc = sc.points.get(pointKey);
-
         pc.nSignal = (nSignal == null || nSignal.isEmpty()) ? null : nSignal;
         pc.rSignal = (rSignal == null || rSignal.isEmpty()) ? null : rSignal;
 
-        LineManager.saveLine(lineId);
+        LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLineList(
+        ServerLineSyncHandler.broadcastLine(
                 FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
@@ -311,22 +290,21 @@ public class WebApiHandler implements HttpHandler {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> updateSection(Map<String, Object> req) {
-        String lineId = (String) req.get("lineId");
         String sectionId = (String) req.get("sectionId");
         String startSignal = (String) req.get("startSignal");
         String endSignal = (String) req.get("endSignal");
         Object railsObj = req.get("rails");
 
         Map<String, Object> r = new HashMap<>();
-        if (lineId == null || sectionId == null) {
+        if (sectionId == null) {
             r.put("ok", false);
-            r.put("error", "lineId/sectionId required");
+            r.put("error", "sectionId required");
             return r;
         }
 
-        LineManager.reloadLine(lineId);
-        LineConfig cfg = LineManager.getLine(lineId);
-        if (cfg == null || cfg.sections == null || !cfg.sections.containsKey(sectionId)) {
+        LineManager.reload();
+        LineConfig cfg = LineManager.getConfig();
+        if (cfg.sections == null || !cfg.sections.containsKey(sectionId)) {
             r.put("ok", false);
             r.put("error", "section not found: " + sectionId);
             return r;
@@ -334,7 +312,7 @@ public class WebApiHandler implements HttpHandler {
         LineConfig.SectionConfig sc = cfg.sections.get(sectionId);
         sc.startSignal = (startSignal == null || startSignal.isEmpty()) ? null : startSignal;
         sc.endSignal   = (endSignal   == null || endSignal.isEmpty())   ? null : endSignal;
-        
+
         if (railsObj instanceof List) {
             List<int[]> newRails = new ArrayList<>();
             for (Object o : (List<?>) railsObj) {
@@ -348,9 +326,9 @@ public class WebApiHandler implements HttpHandler {
             sc.rails = newRails.toArray(new int[0][]);
         }
 
-        LineManager.saveLine(lineId);
+        LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLineList(
+        ServerLineSyncHandler.broadcastLine(
                 FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
@@ -358,23 +336,17 @@ public class WebApiHandler implements HttpHandler {
     }
 
     private Map<String, Object> createSection(Map<String, Object> req) {
-        String lineId = (String) req.get("lineId");
         String sectionId = (String) req.get("sectionId");
 
         Map<String, Object> r = new HashMap<>();
-        if (lineId == null || sectionId == null || sectionId.isEmpty()) {
+        if (sectionId == null || sectionId.isEmpty()) {
             r.put("ok", false);
-            r.put("error", "lineId/sectionId required");
+            r.put("error", "sectionId required");
             return r;
         }
 
-        LineManager.reloadLine(lineId);
-        LineConfig cfg = LineManager.getLine(lineId);
-        if (cfg == null) {
-            r.put("ok", false);
-            r.put("error", "line not found: " + lineId);
-            return r;
-        }
+        LineManager.reload();
+        LineConfig cfg = LineManager.getConfig();
         if (cfg.sections == null) cfg.sections = new HashMap<>();
         if (cfg.sections.containsKey(sectionId)) {
             r.put("ok", false);
@@ -386,9 +358,9 @@ public class WebApiHandler implements HttpHandler {
         sc.rails = new int[0][];
         cfg.sections.put(sectionId, sc);
 
-        LineManager.saveLine(lineId);
+        LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLineList(
+        ServerLineSyncHandler.broadcastLine(
                 FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
@@ -396,28 +368,27 @@ public class WebApiHandler implements HttpHandler {
     }
 
     private Map<String, Object> deleteSection(Map<String, Object> req) {
-        String lineId = (String) req.get("lineId");
         String sectionId = (String) req.get("sectionId");
 
         Map<String, Object> r = new HashMap<>();
-        if (lineId == null || sectionId == null) {
+        if (sectionId == null) {
             r.put("ok", false);
-            r.put("error", "lineId/sectionId required");
+            r.put("error", "sectionId required");
             return r;
         }
 
-        LineManager.reloadLine(lineId);
-        LineConfig cfg = LineManager.getLine(lineId);
-        if (cfg == null || cfg.sections == null || !cfg.sections.containsKey(sectionId)) {
+        LineManager.reload();
+        LineConfig cfg = LineManager.getConfig();
+        if (cfg.sections == null || !cfg.sections.containsKey(sectionId)) {
             r.put("ok", false);
             r.put("error", "section not found: " + sectionId);
             return r;
         }
         cfg.sections.remove(sectionId);
 
-        LineManager.saveLine(lineId);
+        LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLineList(
+        ServerLineSyncHandler.broadcastLine(
                 FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
@@ -425,14 +396,13 @@ public class WebApiHandler implements HttpHandler {
     }
 
     private Map<String, Object> renameSection(Map<String, Object> req) {
-        String lineId = (String) req.get("lineId");
         String oldId = (String) req.get("oldId");
         String newId = (String) req.get("newId");
 
         Map<String, Object> r = new HashMap<>();
-        if (lineId == null || oldId == null || newId == null || newId.isEmpty()) {
+        if (oldId == null || newId == null || newId.isEmpty()) {
             r.put("ok", false);
-            r.put("error", "lineId/oldId/newId required");
+            r.put("error", "oldId/newId required");
             return r;
         }
         if (oldId.equals(newId)) {
@@ -440,9 +410,9 @@ public class WebApiHandler implements HttpHandler {
             return r;
         }
 
-        LineManager.reloadLine(lineId);
-        LineConfig cfg = LineManager.getLine(lineId);
-        if (cfg == null || cfg.sections == null || !cfg.sections.containsKey(oldId)) {
+        LineManager.reload();
+        LineConfig cfg = LineManager.getConfig();
+        if (cfg.sections == null || !cfg.sections.containsKey(oldId)) {
             r.put("ok", false);
             r.put("error", "section not found: " + oldId);
             return r;
@@ -452,13 +422,12 @@ public class WebApiHandler implements HttpHandler {
             r.put("error", "section already exists: " + newId);
             return r;
         }
-
         LineConfig.SectionConfig sc = cfg.sections.remove(oldId);
         cfg.sections.put(newId, sc);
 
-        LineManager.saveLine(lineId);
+        LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLineList(
+        ServerLineSyncHandler.broadcastLine(
                 FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
@@ -467,22 +436,21 @@ public class WebApiHandler implements HttpHandler {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> updateRoute(Map<String, Object> req) {
-        String lineId = (String) req.get("lineId");
         String routeId = (String) req.get("routeId");
         Object sectionsObj = req.get("sections");
         Object nPointObj = req.get("nPoint");
         Object rPointObj = req.get("rPoint");
 
         Map<String, Object> r = new HashMap<>();
-        if (lineId == null || routeId == null) {
+        if (routeId == null) {
             r.put("ok", false);
-            r.put("error", "lineId/routeId required");
+            r.put("error", "routeId required");
             return r;
         }
 
-        LineManager.reloadLine(lineId);
-        LineConfig cfg = LineManager.getLine(lineId);
-        if (cfg == null || cfg.routes == null || !cfg.routes.containsKey(routeId)) {
+        LineManager.reload();
+        LineConfig cfg = LineManager.getConfig();
+        if (cfg.routes == null || !cfg.routes.containsKey(routeId)) {
             r.put("ok", false);
             r.put("error", "route not found: " + routeId);
             return r;
@@ -496,9 +464,7 @@ public class WebApiHandler implements HttpHandler {
             }
             rc.sections = list.toArray(new String[0]);
         }
-
         if (rc.route == null) rc.route = new LineConfig.RouteConfig.RouteSwitchConfig();
-
         if (nPointObj instanceof List) {
             List<String> list = new ArrayList<>();
             for (Object o : (List<?>) nPointObj) {
@@ -514,9 +480,9 @@ public class WebApiHandler implements HttpHandler {
             rc.route.rPoint = list.toArray(new String[0]);
         }
 
-        LineManager.saveLine(lineId);
+        LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLineList(
+        ServerLineSyncHandler.broadcastLine(
                 FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
@@ -524,23 +490,17 @@ public class WebApiHandler implements HttpHandler {
     }
 
     private Map<String, Object> createRoute(Map<String, Object> req) {
-        String lineId = (String) req.get("lineId");
         String routeId = (String) req.get("routeId");
 
         Map<String, Object> r = new HashMap<>();
-        if (lineId == null || routeId == null || routeId.isEmpty()) {
+        if (routeId == null || routeId.isEmpty()) {
             r.put("ok", false);
-            r.put("error", "lineId/routeId required");
+            r.put("error", "routeId required");
             return r;
         }
 
-        LineManager.reloadLine(lineId);
-        LineConfig cfg = LineManager.getLine(lineId);
-        if (cfg == null) {
-            r.put("ok", false);
-            r.put("error", "line not found: " + lineId);
-            return r;
-        }
+        LineManager.reload();
+        LineConfig cfg = LineManager.getConfig();
         if (cfg.routes == null) cfg.routes = new HashMap<>();
         if (cfg.routes.containsKey(routeId)) {
             r.put("ok", false);
@@ -555,9 +515,9 @@ public class WebApiHandler implements HttpHandler {
         rc.route.rPoint = new String[0];
         cfg.routes.put(routeId, rc);
 
-        LineManager.saveLine(lineId);
+        LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLineList(
+        ServerLineSyncHandler.broadcastLine(
                 FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
@@ -565,14 +525,13 @@ public class WebApiHandler implements HttpHandler {
     }
 
     private Map<String, Object> renameRoute(Map<String, Object> req) {
-        String lineId = (String) req.get("lineId");
         String oldId = (String) req.get("oldId");
         String newId = (String) req.get("newId");
 
         Map<String, Object> r = new HashMap<>();
-        if (lineId == null || oldId == null || newId == null || newId.isEmpty()) {
+        if (oldId == null || newId == null || newId.isEmpty()) {
             r.put("ok", false);
-            r.put("error", "lineId/oldId/newId required");
+            r.put("error", "oldId/newId required");
             return r;
         }
         if (oldId.equals(newId)) {
@@ -580,9 +539,9 @@ public class WebApiHandler implements HttpHandler {
             return r;
         }
 
-        LineManager.reloadLine(lineId);
-        LineConfig cfg = LineManager.getLine(lineId);
-        if (cfg == null || cfg.routes == null || !cfg.routes.containsKey(oldId)) {
+        LineManager.reload();
+        LineConfig cfg = LineManager.getConfig();
+        if (cfg.routes == null || !cfg.routes.containsKey(oldId)) {
             r.put("ok", false);
             r.put("error", "route not found: " + oldId);
             return r;
@@ -592,13 +551,12 @@ public class WebApiHandler implements HttpHandler {
             r.put("error", "route already exists: " + newId);
             return r;
         }
-
         LineConfig.RouteConfig rc = cfg.routes.remove(oldId);
         cfg.routes.put(newId, rc);
 
-        LineManager.saveLine(lineId);
+        LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLineList(
+        ServerLineSyncHandler.broadcastLine(
                 FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
@@ -606,28 +564,27 @@ public class WebApiHandler implements HttpHandler {
     }
 
     private Map<String, Object> deleteRoute(Map<String, Object> req) {
-        String lineId = (String) req.get("lineId");
         String routeId = (String) req.get("routeId");
 
         Map<String, Object> r = new HashMap<>();
-        if (lineId == null || routeId == null) {
+        if (routeId == null) {
             r.put("ok", false);
-            r.put("error", "lineId/routeId required");
+            r.put("error", "routeId required");
             return r;
         }
 
-        LineManager.reloadLine(lineId);
-        LineConfig cfg = LineManager.getLine(lineId);
-        if (cfg == null || cfg.routes == null || !cfg.routes.containsKey(routeId)) {
+        LineManager.reload();
+        LineConfig cfg = LineManager.getConfig();
+        if (cfg.routes == null || !cfg.routes.containsKey(routeId)) {
             r.put("ok", false);
             r.put("error", "route not found: " + routeId);
             return r;
         }
         cfg.routes.remove(routeId);
 
-        LineManager.saveLine(lineId);
+        LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLineList(
+        ServerLineSyncHandler.broadcastLine(
                 FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
@@ -635,15 +592,12 @@ public class WebApiHandler implements HttpHandler {
     }
     
     private int findAspectAt(WorldServer world, BlockPos pos) {
-        for (String lineId : LineManager.getAllLines().keySet()) {
-            Map<String, SignalState> sigs =
-                    LineStateManager.getSignals(lineId);
-            if (sigs == null) continue;
-            for (SignalState sig : sigs.values()) {
-                for (BlockPos sp : sig.getSignalPositions()) {
-                    if (sp.equals(pos)) {
-                        return sig.getCurrentAspect();
-                    }
+        Map<String, SignalState> sigs = LineStateManager.getSignals();
+        if (sigs == null) return -1;
+        for (SignalState sig : sigs.values()) {
+            for (BlockPos sp : sig.getSignalPositions()) {
+                if (sp.equals(pos)) {
+                    return sig.getCurrentAspect();
                 }
             }
         }
