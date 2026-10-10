@@ -3,6 +3,9 @@ package jp.apple.aris.web;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import jp.apple.aris.ArisCore;
+import jp.apple.aris.ctc.config.LineConfig;
+import jp.apple.aris.ctc.config.LineManager;
+import jp.apple.aris.ctc.network.ServerLineSyncHandler;
 import jp.apple.aris.ctc.state.LineStateManager;
 import jp.apple.aris.ctc.state.SignalState;
 import jp.apple.aris.ArisDir;
@@ -15,6 +18,7 @@ import jp.ngt.rtm.rail.util.SwitchType;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
+import net.minecraftforge.fml.common.FMLCommonHandler;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -137,6 +141,11 @@ public class ArisMapCache {
 
     public synchronized void updateFromWorld(WorldServer world) {
         boolean changed = false;
+        boolean lineConfigChanged = false;
+
+        LineConfig lineConfig = LineManager.getConfig();
+        if (lineConfig == null) lineConfig = new LineConfig();
+        if (lineConfig.switches == null) lineConfig.switches = new HashMap<>();
 
         Set<String> scannedRailKeys = new HashSet<>();
         Set<String> scannedSignalKeys = new HashSet<>();
@@ -181,6 +190,22 @@ public class ArisMapCache {
                     changed = true;
                 }
                 
+                if (!lineConfig.switches.containsKey(key) && !entry.points.isEmpty()) {
+                    LineConfig.SwitchConfig sc = new LineConfig.SwitchConfig();
+                    sc.points = new HashMap<>();
+                    for (PointEntry pe : entry.points) {
+                        LineConfig.SwitchConfig.PointConfig pc =
+                                new LineConfig.SwitchConfig.PointConfig();
+                        pc.nSignal = null;
+                        pc.rSignal = null;
+                        sc.points.put(pe.key, pc);
+                    }
+                    lineConfig.switches.put(key, sc);
+                    lineConfigChanged = true;
+                    ArisCore.LOGGER.info("ARIS: 分岐 '{}' を自動登録しました ({}ポイント)",
+                            key, entry.points.size());
+                }
+
                 String groupKey = computeGroupKey(core, key);
                 String prevGroupKey = railGroups.get(key);
                 if (!groupKey.equals(prevGroupKey)) {
@@ -307,6 +332,14 @@ public class ArisMapCache {
         if (changed) {
             version++;
             save();
+        }
+
+        if (lineConfigChanged) {
+            LineManager.save();
+            LineStateManager.initializeStates();
+            ServerLineSyncHandler.broadcastLine(
+                    FMLCommonHandler.instance().getMinecraftServerInstance());
+            ArisCore.LOGGER.info("ARIS: 自動登録により路線データを再構築しました");
         }
     }
 
