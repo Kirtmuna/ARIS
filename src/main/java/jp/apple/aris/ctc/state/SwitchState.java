@@ -64,10 +64,6 @@ public class SwitchState {
         }
 
         Point p = points[pointIndex];
-        if (p.branchDir == RailDir.NONE) {
-            return SwitchPosition.UNKNOWN;
-        }
-
         return p.rpRoot.checkRSInput(world) ? SwitchPosition.REVERSE : SwitchPosition.NORMAL;
     }
     /** 現在の向きに対応する信号 */

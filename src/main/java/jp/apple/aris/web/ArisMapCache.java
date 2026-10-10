@@ -173,7 +173,6 @@ public class ArisMapCache {
                     for (int i = 0; i < pts.length; i++) {
                         Point p = pts[i];
                         if (p == null || p.rpRoot == null) continue;
-                        if (p.branchDir == jp.ngt.rtm.rail.util.RailDir.NONE) continue;
                         newPoints.add(new PointEntry(
                                 "P" + i, i,
                                 new double[]{p.rpRoot.posX, p.rpRoot.posY, p.rpRoot.posZ},
