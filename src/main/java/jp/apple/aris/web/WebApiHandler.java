@@ -3,11 +3,11 @@ package jp.apple.aris.web;
 import com.google.gson.Gson;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
+import jp.apple.aris.cbi.Cbi;
 import jp.apple.aris.ctc.config.LineConfig;
 import jp.apple.aris.ctc.config.LineManager;
 import jp.apple.aris.ctc.network.ServerLineSyncHandler;
-import jp.apple.aris.ctc.state.LineStateManager;
-import jp.apple.aris.ctc.state.SignalState;
+import jp.apple.aris.ctc.state.*;
 import jp.ngt.rtm.electric.TileEntitySignal;
 import jp.ngt.rtm.rail.TileEntityLargeRailCore;
 import jp.ngt.rtm.rail.TileEntityLargeRailSwitchCore;
@@ -52,6 +52,9 @@ public class WebApiHandler implements HttpHandler {
                     break;
                 case "/api/map":
                     result = mapSnapshot();
+                    break;
+                case "/api/state":
+                    result = stateSnapshot();
                     break;
                 default:
                     sendJson(ex, 404, err("unknown endpoint"));
@@ -104,6 +107,12 @@ public class WebApiHandler implements HttpHandler {
                 break;
             case "/api/route/delete":
                 result = deleteRoute(req);
+                break;
+            case "/api/route/request":
+                result = requestRoute(req);
+                break;
+            case "/api/route/release":
+                result = releaseRoute(req);
                 break;
             default:
                 sendJson(ex, 404, err("unknown endpoint"));
@@ -587,6 +596,126 @@ public class WebApiHandler implements HttpHandler {
         ServerLineSyncHandler.broadcastLine(
                 FMLCommonHandler.instance().getMinecraftServerInstance());
 
+        r.put("ok", true);
+        return r;
+    }
+    
+    private Map<String, Object> stateSnapshot() {
+        Map<String, Object> m = new HashMap<>();
+        // 進路
+        Map<String, Object> routes = new HashMap<>();
+        Map<String, RouteState> routeMap = LineStateManager.getRoutes();
+        if (routeMap != null) {
+            for (Map.Entry<String, RouteState> e : routeMap.entrySet()) {
+                Map<String, Object> r = new HashMap<>();
+                r.put("status", e.getValue().getStatus().name());
+                routes.put(e.getKey(), r);
+            }
+        }
+        m.put("routes", routes);
+        // 区間
+        Map<String, Object> sections = new HashMap<>();
+        Map<String, SectionState> sectionMap = LineStateManager.getSections();
+        if (sectionMap != null) {
+            for (Map.Entry<String, SectionState> e : sectionMap.entrySet()) {
+                Map<String, Object> s = new HashMap<>();
+                s.put("occupied", e.getValue().isOccupied());
+                sections.put(e.getKey(), s);
+            }
+        }
+        m.put("sections", sections);
+        // 信号
+        Map<String, Object> signals = new HashMap<>();
+        Map<String, SignalState> signalMap = LineStateManager.getSignals();
+        if (signalMap != null) {
+            for (Map.Entry<String, SignalState> e : signalMap.entrySet()) {
+                Map<String, Object> s = new HashMap<>();
+                s.put("aspect", e.getValue().getCurrentAspect());
+                signals.put(e.getKey(), s);
+            }
+        }
+        m.put("signals", signals);
+        // ポイント
+        Map<String, Object> points = new HashMap<>();
+        Map<String, SwitchState> pointMap = LineStateManager.getPoints();
+        if (pointMap != null) {
+            for (Map.Entry<String, SwitchState> e : pointMap.entrySet()) {
+                Map<String, Object> p = new HashMap<>();
+                p.put("switchId", e.getValue().getSwitchId());
+                p.put("position", e.getValue().getCurrentPosition().name());
+                points.put(e.getKey(), p);
+            }
+        }
+        m.put("points", points);
+
+        return m;
+    }
+
+    private Map<String, Object> requestRoute(Map<String, Object> req) {
+        String routeId = (String) req.get("routeId");
+        Map<String, Object> r = new HashMap<>();
+        if (routeId == null) {
+            r.put("ok", false);
+            r.put("error", "routeId required");
+            return r;
+        }
+
+        RouteState route = LineStateManager.getRoutes().get(routeId);
+        if (route == null) {
+            r.put("ok", false);
+            r.put("error", "route not found: " + routeId);
+            return r;
+        }
+
+        MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
+        WorldServer world = server != null ? server.getWorld(0) : null;
+        if (world == null) {
+            r.put("ok", false);
+            r.put("error", "server not ready");
+            return r;
+        }
+
+        boolean ok = Cbi.get().requestRoute(world, route);
+        if (ok) {
+            route.setStatus(RouteState.Status.SET);
+            r.put("ok", true);
+        } else {
+            r.put("ok", false);
+            r.put("error", "route busy");
+        }
+        return r;
+    }
+
+    private Map<String, Object> releaseRoute(Map<String, Object> req) {
+        String routeId = (String) req.get("routeId");
+        Map<String, Object> r = new HashMap<>();
+        if (routeId == null) {
+            r.put("ok", false);
+            r.put("error", "routeId required");
+            return r;
+        }
+
+        RouteState route = LineStateManager.getRoutes().get(routeId);
+        if (route == null) {
+            r.put("ok", false);
+            r.put("error", "route not found: " + routeId);
+            return r;
+        }
+        if (route.getStatus() == RouteState.Status.IDLE) {
+            r.put("ok", true);
+            return r;
+        }
+
+        MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
+        WorldServer world = server != null ? server.getWorld(0) : null;
+        if (world == null) {
+            r.put("ok", false);
+            r.put("error", "server not ready");
+            return r;
+        }
+
+        Cbi.get().releaseRoute(world, route);
+        route.setStatus(RouteState.Status.IDLE);
         r.put("ok", true);
         return r;
     }
