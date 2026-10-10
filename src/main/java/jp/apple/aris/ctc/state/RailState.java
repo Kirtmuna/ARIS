@@ -11,9 +11,11 @@ public class RailState {
     private final String railId;
     private BlockPos railPosition;
     private boolean isOccupied = false;
+    private String logicalRailId;
 
     public RailState(String railId, int[] position) {
         this.railId = railId;
+        this.logicalRailId = railId;
         this.railPosition = PositionUtil.toBlockPos(position);
     }
 
@@ -21,16 +23,30 @@ public class RailState {
         if (world == null || !world.isBlockLoaded(this.railPosition)) return;
         TileEntity te = world.getTileEntity(this.railPosition);
         if (te instanceof TileEntityLargeRailCore) {
-            this.isOccupied = ((TileEntityLargeRailCore) te).isLogicalRailOccupied();
+            TileEntityLargeRailCore core = (TileEntityLargeRailCore) te;
+            this.isOccupied = core.isLogicalRailOccupied();
+            this.logicalRailId = resolveLogicalRailId(core, this.railId);
             return;
         }
         if (te instanceof TileEntityLargeRailBase) {
-            TileEntityLargeRailCore core = ((TileEntityLargeRailBase) te).getRailCore();
+            TileEntityLargeRailBase base = (TileEntityLargeRailBase) te;
+            TileEntityLargeRailCore core = base.getRailCore();
             if (core != null) {
                 this.railPosition = core.getPos();
                 this.isOccupied = core.isLogicalRailOccupied();
+                this.logicalRailId = resolveLogicalRailId(core, this.railId);
             }
         }
+    }
+    private static String resolveLogicalRailId(TileEntityLargeRailCore core, String fallback) {
+        try {
+            java.util.List<int[]> group = core.getRailGroupCorePositions();
+            if (group != null && !group.isEmpty()) {
+                int[] gp = group.get(0);
+                return gp[0] + "," + gp[1] + "," + gp[2];
+            }
+        } catch (Exception ignored) {}
+        return fallback;
     }
 
     // ゲッター
@@ -40,6 +56,10 @@ public class RailState {
 
     public BlockPos getRailPosition() {
         return railPosition;
+    }
+
+    public String getLogicalRailId() {
+        return logicalRailId;
     }
 
     public boolean isOccupied() {

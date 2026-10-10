@@ -111,7 +111,7 @@ public class Cbi {
         for (SectionState section : route.getSections()) {
             for (RailState rail : section.getSectionRails()) {
                 if (rail != null) {
-                    rails.add(rail.getRailId());
+                    rails.add(rail.getLogicalRailId());
                 }
             }
         }
