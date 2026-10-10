@@ -13,14 +13,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class GuiRouteSelectMenu extends GuiScreen {
-    private final String lineId;
     private final EnumHand hand;
     private List<String> routeIds = new ArrayList<>();
     private boolean opened = false;
     private String pendingRoute = null;
 
-    public GuiRouteSelectMenu(String lineId, EnumHand hand) {
-        this.lineId = lineId;
+    public GuiRouteSelectMenu(EnumHand hand) {
         this.hand = hand;
     }
 
@@ -31,7 +29,7 @@ public class GuiRouteSelectMenu extends GuiScreen {
         this.opened = true;
 
         this.routeIds = new ArrayList<>();
-        LineConfig config = ClientLineCache.getConfig(this.lineId);
+        LineConfig config = ClientLineCache.getConfig();
         if (config != null && config.routes != null) {
             this.routeIds.addAll(config.routes.keySet());
         }
@@ -67,10 +65,11 @@ public class GuiRouteSelectMenu extends GuiScreen {
         if (this.pendingRoute != null) {
             String routeId = this.pendingRoute;
             this.pendingRoute = null;
-            ArisNetwork.CHANNEL.sendToServer(new PacketRequestRoute(this.lineId, routeId, this.hand));
+            ArisNetwork.CHANNEL.sendToServer(new PacketRequestRoute(routeId, this.hand));
             Minecraft.getMinecraft().displayGuiScreen(null);
         }
     }
+
     @Override
     public boolean doesGuiPauseGame() {
         return false;

@@ -34,11 +34,11 @@ public class CommandCtc extends CommandBase {
             return;
         }
 
-        LineManager.loadAllLines();
+        LineManager.load();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLineList(server);
+        ServerLineSyncHandler.broadcastLine(server);
 
         sender.sendMessage(new TextComponentString(
-                TextFormatting.GREEN + "ARIS: 路線データをリロードしました (" + LineManager.getAllLines().size() + "路線)"));
+                TextFormatting.GREEN + "ARIS: 路線データをリロードしました"));
     }
 }

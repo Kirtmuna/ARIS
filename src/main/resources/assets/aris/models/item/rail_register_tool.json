@@ -1,6 +1,0 @@
-{
-  "parent": "item/generated",
-  "textures": {
-    "layer0": "aris:items/rail_register_tool"
-  }
-}

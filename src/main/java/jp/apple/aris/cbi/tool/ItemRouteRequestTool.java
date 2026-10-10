@@ -1,7 +1,7 @@
 package jp.apple.aris.cbi.tool;
 
 import jp.apple.aris.ArisCore;
-import jp.apple.aris.cbi.tool.gui.GuiLineSelectMenu;
+import jp.apple.aris.cbi.tool.gui.GuiRouteSelectMenu;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
@@ -31,8 +31,7 @@ public class ItemRouteRequestTool extends Item {
         return new ActionResult<>(EnumActionResult.SUCCESS, stack);
     }
 
-    @SideOnly(Side.CLIENT)
     private void openGuiClient(ItemStack stack, EnumHand hand) {
-        Minecraft.getMinecraft().displayGuiScreen(new GuiLineSelectMenu(hand));
+        Minecraft.getMinecraft().displayGuiScreen(new GuiRouteSelectMenu(hand));
     }
 }

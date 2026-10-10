@@ -14,19 +14,17 @@ public class ServerLineSyncHandler {
     @SubscribeEvent
     public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.player instanceof EntityPlayerMP) {
-            sendLineListTo((EntityPlayerMP) event.player);
+            sendLineTo((EntityPlayerMP) event.player);
         }
     }
 
-    private static void sendLineListTo(EntityPlayerMP player) {
-        ArisNetwork.CHANNEL.sendTo(new PacketSyncLineList(LineManager.getAllLines()), player);
+    private static void sendLineTo(EntityPlayerMP player) {
+        ArisNetwork.CHANNEL.sendTo(new PacketSyncLine(LineManager.getConfig()), player);
     }
-    /**
-     * 現在ログイン中の全プレイヤーに、最新の路線ID一覧を再送する
-     */
-    public static void broadcastLineList(MinecraftServer server) {
+
+    public static void broadcastLine(MinecraftServer server) {
         if (server == null) return;
-        PacketSyncLineList packet = new PacketSyncLineList(LineManager.getAllLines());
+        PacketSyncLine packet = new PacketSyncLine(LineManager.getConfig());
         for (EntityPlayerMP player : server.getPlayerList().getPlayers()) {
             ArisNetwork.CHANNEL.sendTo(packet, player);
         }

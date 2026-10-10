@@ -2,22 +2,14 @@ package jp.apple.aris.ctc.client;
 
 import jp.apple.aris.ctc.config.LineConfig;
 
-import java.util.*;
-
 public class ClientLineCache {
-    private static Map<String, LineConfig> LINES = new HashMap<>();
+    private static LineConfig CONFIG = new LineConfig();
 
-    public static void setLines(Map<String, LineConfig> lines) {
-        LINES = new HashMap<>(lines);
+    public static void setConfig(LineConfig config) {
+        CONFIG = (config != null) ? config : new LineConfig();
     }
 
-    public static List<String> getLineIds() {
-        List<String> ids = new ArrayList<>(LINES.keySet());
-        Collections.sort(ids);
-        return ids;
-    }
-
-    public static LineConfig getConfig(String lineId) {
-        return LINES.get(lineId);
+    public static LineConfig getConfig() {
+        return CONFIG;
     }
 }
