@@ -16,6 +16,7 @@
     let pickMode = null;  // { purpose: 'nSignal'|'rSignal', switchId, pointKey }
     let pendingPointEdit = null;  // { switchId, pointKey, nSignal, rSignal, lineId }
     let pendingSectionEdit = null;  // { sectionId, lineId, startSignal, endSignal, rails }
+    let pendingRouteEdit = null;    // { routeId, lineId, sections, nPoint, rPoint }
 
     function resize() {
         const dpr = window.devicePixelRatio || 1;
@@ -172,6 +173,17 @@
                 const railKey = pickRail(mx, my);
                 if (railKey) {
                     onPickedRail(railKey);
+                } else {
+                    pickMode = null;
+                    renderPanelTop();
+                }
+                draw();
+                return;
+            }
+            if (pickMode.target === 'pointOnly') {
+                const hitP = pickPoint(mx, my);
+                if (hitP) {
+                    onPickedPoint(hitP.switchId, hitP.pointKey);
                 } else {
                     pickMode = null;
                     renderPanelTop();
@@ -404,16 +416,32 @@
 
     function onPickedPoint(switchId, pointKey) {
         if (!pickMode) return;
-        if (pickMode.target !== 'signalOrPoint') return;
         const key = switchId + '.' + pointKey;
-        if (pickMode.purpose === 'endSignal' && pendingSectionEdit) {
-            pendingSectionEdit.endSignal = key;
-        } else if (pickMode.purpose === 'startSignal' && pendingSectionEdit) {
-            pendingSectionEdit.startSignal = key;
+        
+        if (pickMode.target === 'signalOrPoint' && pendingSectionEdit) {
+            if (pickMode.purpose === 'endSignal') {
+                pendingSectionEdit.endSignal = key;
+            } else if (pickMode.purpose === 'startSignal') {
+                pendingSectionEdit.startSignal = key;
+            }
+            pickMode = null;
+            renderPanelTop();
+            draw();
+            return;
         }
-        pickMode = null;
-        renderPanelTop();
-        draw();
+        if (pickMode.target === 'pointOnly' && pendingRouteEdit) {
+            if (pickMode.purpose === 'nPoint') {
+                if (!pendingRouteEdit.nPoint.includes(key)) {
+                    pendingRouteEdit.nPoint.push(key);
+                }
+            } else if (pickMode.purpose === 'rPoint') {
+                if (!pendingRouteEdit.rPoint.includes(key)) {
+                    pendingRouteEdit.rPoint.push(key);
+                }
+            }
+            renderPanelTop();
+            draw();
+        }
     }
     function onPickedRail(railKey) {
         if (!pendingSectionEdit) return;
@@ -741,8 +769,13 @@
         selected = { list: listKey, id };
         if (listKey === 'sections') {
             initSectionEdit(id);
+            pendingRouteEdit = null;
+        } else if (listKey === 'routes') {
+            initRouteEdit(id);
+            pendingSectionEdit = null;
         } else {
             pendingSectionEdit = null;
+            pendingRouteEdit = null;
         }
         renderList(listKey);
         renderPanelTop();
@@ -758,6 +791,7 @@
     function selectSignal(key) {
         selected = { list: 'signals', id: key };
         pendingSectionEdit = null;
+        pendingRouteEdit = null;
         renderPanelTop();
         draw();
     }
@@ -765,6 +799,7 @@
     function selectPoint(switchId, pointKey) {
         selected = { list: 'switches', id: switchId + '.' + pointKey };
         pendingSectionEdit = null;
+        pendingRouteEdit = null;
 
         let nSig = '';
         let rSig = '';
@@ -817,6 +852,27 @@
         };
     }
 
+    function initRouteEdit(routeId) {
+        let cfg = null;
+        let lineId = null;
+        for (const lid of Object.keys(lineConfigsCache)) {
+            const c = lineConfigsCache[lid];
+            if (c && c.routes && c.routes[routeId]) {
+                cfg = c.routes[routeId];
+                lineId = lid;
+                break;
+            }
+        }
+        if (!cfg) {
+            pendingRouteEdit = null;
+            return;
+        }
+        const sections = (cfg.sections || []).slice();
+        const nPoint = (cfg.route && cfg.route.nPoint) ? cfg.route.nPoint.slice() : [];
+        const rPoint = (cfg.route && cfg.route.rPoint) ? cfg.route.rPoint.slice() : [];
+        pendingRouteEdit = { routeId, lineId, sections, nPoint, rPoint };
+    }
+
     function renderPanelTop() {
         const ph = document.getElementById('panelTopPlaceholder');
         const content = document.getElementById('panelTopContent');
@@ -857,13 +913,10 @@
             });
         } else if (selected.list === 'sections') {
             renderSectionPanel(content, selected.id);
+        } else if (selected.list === 'routes') {
+            renderRoutePanel(content, selected.id);
         } else {
-            content.innerHTML = `
-                <h3>進路</h3>
-                <div class="field"><label>ID</label><div class="value">${escapeHtml(selected.id)}</div></div>
-                <div class="field"><label>編集</label><div class="value" style="color:#888;">(未実装)</div></div>
-                <div class="dangerZone"><button id="btnDeleteItem" disabled>この項目を削除 (未実装)</button></div>
-            `;
+            content.innerHTML = `<h3>不明なリスト: ${escapeHtml(selected.list || '')}</h3>`;
         }
     }
 
@@ -1060,6 +1113,170 @@
         });
     }
 
+    function renderRoutePanel(content, routeId) {
+        if (!pendingRouteEdit || pendingRouteEdit.routeId !== routeId) {
+            initRouteEdit(routeId);
+        }
+        if (!pendingRouteEdit) {
+            content.innerHTML = `<h3>進路</h3><div class="field">進路が見つかりません: ${escapeHtml(routeId)}</div>`;
+            return;
+        }
+        const { sections, nPoint, rPoint } = pendingRouteEdit;
+
+        // sections リスト
+        const secItems = sections.map((s, i) =>
+        `<div class="listRow">
+            <span class="idx">${i + 1}</span>
+            <span class="mono">${escapeHtml(s)}</span>
+            <button class="routeRemove danger" data-kind="section" data-idx="${i}">×</button>
+        </div>`
+        ).join('');
+        const secBlock = sections.length > 0
+        ? secItems
+        : '<div class="listRow empty">(未設定)</div>';
+
+        // 追加可能な区間 (まだ入っていないもの)
+        const availableSections = sectionsData.filter(s => !sections.includes(s));
+        const sectionOptions = availableSections.map(s =>
+        `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`
+        ).join('');
+        const canAddSection = availableSections.length > 0;
+
+        // nPoint リスト
+        const nItems = nPoint.map((p, i) =>
+        `<div class="listRow">
+            <span class="idx">${i + 1}</span>
+            <span class="mono">${escapeHtml(p)}</span>
+            <button class="routeRemove danger" data-kind="nPoint" data-idx="${i}">×</button>
+        </div>`
+        ).join('');
+        const nBlock = nPoint.length > 0 ? nItems : '<div class="listRow empty">(未設定)</div>';
+
+        // rPoint リスト
+        const rItems = rPoint.map((p, i) =>
+        `<div class="listRow">
+            <span class="idx">${i + 1}</span>
+            <span class="mono">${escapeHtml(p)}</span>
+            <button class="routeRemove danger" data-kind="rPoint" data-idx="${i}">×</button>
+        </div>`
+        ).join('');
+        const rBlock = rPoint.length > 0 ? rItems : '<div class="listRow empty">(未設定)</div>';
+
+        const pickN = pickMode && pickMode.purpose === 'nPoint';
+        const pickR = pickMode && pickMode.purpose === 'rPoint';
+
+        content.innerHTML = `
+            <h3>進路</h3>
+            <div class="field">
+                <label>ID</label>
+                <input type="text" id="routeIdInput" value="${escapeHtml(routeId)}">
+            </div>
+
+            <div class="field">
+                <label>区間 (${sections.length}個)</label>
+                <div class="listBoxReadonly">${secBlock}</div>
+                <div class="buttonRow">
+                    <select id="sectionAddSelect" ${canAddSection ? '' : 'disabled'}>
+                        ${canAddSection ? sectionOptions : '<option>(追加可能な区間なし)</option>'}
+                    </select>
+                    <button id="btnAddSectionToRoute" ${canAddSection ? '' : 'disabled'}>追加</button>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>N ポイント</label>
+                <div class="listBoxReadonly">${nBlock}</div>
+                <div class="buttonRow">
+                    <button id="btnPickNPoint" class="${pickN ? 'active' : ''}">
+                        ${pickN ? '選択中...' : '追加'}
+                    </button>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>R ポイント</label>
+                <div class="listBoxReadonly">${rBlock}</div>
+                <div class="buttonRow">
+                    <button id="btnPickRPoint" class="${pickR ? 'active' : ''}">
+                        ${pickR ? '選択中...' : '追加'}
+                    </button>
+                </div>
+            </div>
+
+            <div class="field">
+                <button id="btnRouteSave">保存</button>
+            </div>
+            <div class="dangerZone">
+                <button id="btnRouteDelete">この進路を削除</button>
+            </div>
+        `;
+
+        document.getElementById('btnAddSectionToRoute').addEventListener('click', () => {
+            const sel = document.getElementById('sectionAddSelect');
+            if (!sel || sel.disabled) return;
+            const v = sel.value;
+            if (!v) return;
+            if (!pendingRouteEdit.sections.includes(v)) {
+                pendingRouteEdit.sections.push(v);
+            }
+            renderPanelTop();
+            draw();
+        });
+
+        document.getElementById('btnPickNPoint').addEventListener('click', () => {
+            if (pickMode && pickMode.purpose === 'nPoint') {
+                pickMode = null;
+            } else {
+                pickMode = {
+                    target: 'pointOnly',
+                    purpose: 'nPoint',
+                    routeId,
+                    lineId: pendingRouteEdit.lineId
+                };
+            }
+            renderPanelTop();
+            draw();
+        });
+        document.getElementById('btnPickRPoint').addEventListener('click', () => {
+            if (pickMode && pickMode.purpose === 'rPoint') {
+                pickMode = null;
+            } else {
+                pickMode = {
+                    target: 'pointOnly',
+                    purpose: 'rPoint',
+                    routeId,
+                    lineId: pendingRouteEdit.lineId
+                };
+            }
+            renderPanelTop();
+            draw();
+        });
+
+        content.querySelectorAll('.routeRemove').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const kind = btn.dataset.kind;
+                const idx = parseInt(btn.dataset.idx, 10);
+                if (isNaN(idx)) return;
+                if (kind === 'section' && idx >= 0 && idx < pendingRouteEdit.sections.length) {
+                    pendingRouteEdit.sections.splice(idx, 1);
+                } else if (kind === 'nPoint' && idx >= 0 && idx < pendingRouteEdit.nPoint.length) {
+                    pendingRouteEdit.nPoint.splice(idx, 1);
+                } else if (kind === 'rPoint' && idx >= 0 && idx < pendingRouteEdit.rPoint.length) {
+                    pendingRouteEdit.rPoint.splice(idx, 1);
+                }
+                renderPanelTop();
+                draw();
+            });
+        });
+
+        document.getElementById('btnRouteSave').addEventListener('click', saveRoute);
+        document.getElementById('btnRouteDelete').addEventListener('click', () => {
+            if (!confirm('進路 "' + routeId + '" を削除しますか？')) return;
+            deleteRoute(routeId, pendingRouteEdit.lineId);
+        });
+    }
+
     async function deleteSection(sectionId, lineId) {
         if (!lineId) {
             alert('路線が見つかりません');
@@ -1082,6 +1299,130 @@
             await fetchMap();
             renderPanelTop();
             draw();
+        } catch (e) {
+            alert('通信エラー: ' + e);
+        }
+    }
+
+    async function saveRoute() {
+        if (!pendingRouteEdit) return;
+        const { routeId, lineId, sections, nPoint, rPoint } = pendingRouteEdit;
+        if (!lineId) {
+            alert('路線が見つかりません');
+            return;
+        }
+
+        const idInput = document.getElementById('routeIdInput');
+        const newId = idInput ? idInput.value.trim() : routeId;
+        let currentId = routeId;
+
+        if (newId && newId !== routeId) {
+            try {
+                const rr = await fetch('/api/route/rename', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lineId, oldId: routeId, newId })
+                });
+                const rres = await rr.json();
+                if (!rres.ok) {
+                    alert('名前変更失敗: ' + (rres.error || ''));
+                    return;
+                }
+                currentId = newId;
+            } catch (e) {
+                alert('通信エラー: ' + e);
+                return;
+            }
+        }
+
+        try {
+            const r = await fetch('/api/route/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    lineId, routeId: currentId,
+                    sections, nPoint, rPoint
+                })
+            });
+            const res = await r.json();
+            if (!res.ok) {
+                alert('保存失敗: ' + (res.error || ''));
+                return;
+            }
+            if (currentId !== routeId) {
+                selected.id = currentId;
+                pendingRouteEdit.routeId = currentId;
+            }
+            currentVersion = -1;
+            fetchMap();
+        } catch (e) {
+            alert('通信エラー: ' + e);
+        }
+    }
+
+    async function deleteRoute(routeId, lineId) {
+        if (!lineId) {
+            alert('路線が見つかりません');
+            return;
+        }
+        try {
+            const r = await fetch('/api/route/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lineId, routeId })
+            });
+            const res = await r.json();
+            if (!res.ok) {
+                alert('削除失敗: ' + (res.error || ''));
+                return;
+            }
+            selected = { list: null, id: null };
+            pendingRouteEdit = null;
+            currentVersion = -1;
+            await fetchMap();
+            renderPanelTop();
+            draw();
+        } catch (e) {
+            alert('通信エラー: ' + e);
+        }
+    }
+
+    async function addRoute() {
+        const lineIds = Object.keys(lineConfigsCache);
+        if (lineIds.length === 0) {
+            alert('路線がありません');
+            return;
+        }
+        let lineId = lineIds[0];
+        if (lineIds.length > 1) {
+            const v = prompt('路線ID (' + lineIds.join(', ') + ')', lineId);
+            if (v == null) return;
+            if (!lineIds.includes(v)) {
+                alert('その路線はありません');
+                return;
+            }
+            lineId = v;
+        }
+
+        const name = prompt('進路ID');
+        if (name == null) return;
+        const routeId = name.trim();
+        if (!routeId) return;
+
+        try {
+            const r = await fetch('/api/route/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lineId, routeId })
+            });
+            const res = await r.json();
+            if (!res.ok) {
+                alert('作成失敗: ' + (res.error || ''));
+                return;
+            }
+            currentVersion = -1;
+            await fetchMap();
+            selectItem('routes', routeId);
         } catch (e) {
             alert('通信エラー: ' + e);
         }
@@ -1359,7 +1700,7 @@
             if (listKey === 'sections') {
                 addSection();
             } else if (listKey === 'routes') {
-                alert('進路の追加は未実装です');
+                addRoute();
             }
         });
     });

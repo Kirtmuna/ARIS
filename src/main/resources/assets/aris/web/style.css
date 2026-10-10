@@ -244,3 +244,16 @@ main { flex: 1; display: flex; min-height: 0; }
 #panelTop .listBoxReadonly .railRemove:hover {
     background: #5a2020;
 }
+
+#panelTop .buttonRow select {
+    flex: 2;
+    background: #0a0a0a;
+    color: #eee;
+    border: 1px solid #444;
+    padding: 4px 6px;
+    border-radius: 2px;
+    font-size: 12px;
+}
+#panelTop .buttonRow select:disabled {
+    opacity: 0.4;
+}

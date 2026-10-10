@@ -93,6 +93,18 @@ public class WebApiHandler implements HttpHandler {
             case "/api/section/delete":
                 result = deleteSection(req);
                 break;
+            case "/api/route/update":
+                result = updateRoute(req);
+                break;
+            case "/api/route/create":
+                result = createRoute(req);
+                break;
+            case "/api/route/rename":
+                result = renameRoute(req);
+                break;
+            case "/api/route/delete":
+                result = deleteRoute(req);
+                break;
             default:
                 sendJson(ex, 404, err("unknown endpoint"));
                 return;
@@ -443,6 +455,175 @@ public class WebApiHandler implements HttpHandler {
 
         LineConfig.SectionConfig sc = cfg.sections.remove(oldId);
         cfg.sections.put(newId, sc);
+
+        LineManager.saveLine(lineId);
+        LineStateManager.initializeStates();
+        ServerLineSyncHandler.broadcastLineList(
+                FMLCommonHandler.instance().getMinecraftServerInstance());
+
+        r.put("ok", true);
+        return r;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> updateRoute(Map<String, Object> req) {
+        String lineId = (String) req.get("lineId");
+        String routeId = (String) req.get("routeId");
+        Object sectionsObj = req.get("sections");
+        Object nPointObj = req.get("nPoint");
+        Object rPointObj = req.get("rPoint");
+
+        Map<String, Object> r = new HashMap<>();
+        if (lineId == null || routeId == null) {
+            r.put("ok", false);
+            r.put("error", "lineId/routeId required");
+            return r;
+        }
+
+        LineManager.reloadLine(lineId);
+        LineConfig cfg = LineManager.getLine(lineId);
+        if (cfg == null || cfg.routes == null || !cfg.routes.containsKey(routeId)) {
+            r.put("ok", false);
+            r.put("error", "route not found: " + routeId);
+            return r;
+        }
+        LineConfig.RouteConfig rc = cfg.routes.get(routeId);
+
+        if (sectionsObj instanceof List) {
+            List<String> list = new ArrayList<>();
+            for (Object o : (List<?>) sectionsObj) {
+                if (o instanceof String) list.add((String) o);
+            }
+            rc.sections = list.toArray(new String[0]);
+        }
+
+        if (rc.route == null) rc.route = new LineConfig.RouteConfig.RouteSwitchConfig();
+
+        if (nPointObj instanceof List) {
+            List<String> list = new ArrayList<>();
+            for (Object o : (List<?>) nPointObj) {
+                if (o instanceof String) list.add((String) o);
+            }
+            rc.route.nPoint = list.toArray(new String[0]);
+        }
+        if (rPointObj instanceof List) {
+            List<String> list = new ArrayList<>();
+            for (Object o : (List<?>) rPointObj) {
+                if (o instanceof String) list.add((String) o);
+            }
+            rc.route.rPoint = list.toArray(new String[0]);
+        }
+
+        LineManager.saveLine(lineId);
+        LineStateManager.initializeStates();
+        ServerLineSyncHandler.broadcastLineList(
+                FMLCommonHandler.instance().getMinecraftServerInstance());
+
+        r.put("ok", true);
+        return r;
+    }
+
+    private Map<String, Object> createRoute(Map<String, Object> req) {
+        String lineId = (String) req.get("lineId");
+        String routeId = (String) req.get("routeId");
+
+        Map<String, Object> r = new HashMap<>();
+        if (lineId == null || routeId == null || routeId.isEmpty()) {
+            r.put("ok", false);
+            r.put("error", "lineId/routeId required");
+            return r;
+        }
+
+        LineManager.reloadLine(lineId);
+        LineConfig cfg = LineManager.getLine(lineId);
+        if (cfg == null) {
+            r.put("ok", false);
+            r.put("error", "line not found: " + lineId);
+            return r;
+        }
+        if (cfg.routes == null) cfg.routes = new HashMap<>();
+        if (cfg.routes.containsKey(routeId)) {
+            r.put("ok", false);
+            r.put("error", "route already exists: " + routeId);
+            return r;
+        }
+
+        LineConfig.RouteConfig rc = new LineConfig.RouteConfig();
+        rc.sections = new String[0];
+        rc.route = new LineConfig.RouteConfig.RouteSwitchConfig();
+        rc.route.nPoint = new String[0];
+        rc.route.rPoint = new String[0];
+        cfg.routes.put(routeId, rc);
+
+        LineManager.saveLine(lineId);
+        LineStateManager.initializeStates();
+        ServerLineSyncHandler.broadcastLineList(
+                FMLCommonHandler.instance().getMinecraftServerInstance());
+
+        r.put("ok", true);
+        return r;
+    }
+
+    private Map<String, Object> renameRoute(Map<String, Object> req) {
+        String lineId = (String) req.get("lineId");
+        String oldId = (String) req.get("oldId");
+        String newId = (String) req.get("newId");
+
+        Map<String, Object> r = new HashMap<>();
+        if (lineId == null || oldId == null || newId == null || newId.isEmpty()) {
+            r.put("ok", false);
+            r.put("error", "lineId/oldId/newId required");
+            return r;
+        }
+        if (oldId.equals(newId)) {
+            r.put("ok", true);
+            return r;
+        }
+
+        LineManager.reloadLine(lineId);
+        LineConfig cfg = LineManager.getLine(lineId);
+        if (cfg == null || cfg.routes == null || !cfg.routes.containsKey(oldId)) {
+            r.put("ok", false);
+            r.put("error", "route not found: " + oldId);
+            return r;
+        }
+        if (cfg.routes.containsKey(newId)) {
+            r.put("ok", false);
+            r.put("error", "route already exists: " + newId);
+            return r;
+        }
+
+        LineConfig.RouteConfig rc = cfg.routes.remove(oldId);
+        cfg.routes.put(newId, rc);
+
+        LineManager.saveLine(lineId);
+        LineStateManager.initializeStates();
+        ServerLineSyncHandler.broadcastLineList(
+                FMLCommonHandler.instance().getMinecraftServerInstance());
+
+        r.put("ok", true);
+        return r;
+    }
+
+    private Map<String, Object> deleteRoute(Map<String, Object> req) {
+        String lineId = (String) req.get("lineId");
+        String routeId = (String) req.get("routeId");
+
+        Map<String, Object> r = new HashMap<>();
+        if (lineId == null || routeId == null) {
+            r.put("ok", false);
+            r.put("error", "lineId/routeId required");
+            return r;
+        }
+
+        LineManager.reloadLine(lineId);
+        LineConfig cfg = LineManager.getLine(lineId);
+        if (cfg == null || cfg.routes == null || !cfg.routes.containsKey(routeId)) {
+            r.put("ok", false);
+            r.put("error", "route not found: " + routeId);
+            return r;
+        }
+        cfg.routes.remove(routeId);
 
         LineManager.saveLine(lineId);
         LineStateManager.initializeStates();
