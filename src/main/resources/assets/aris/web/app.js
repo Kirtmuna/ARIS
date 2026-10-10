@@ -15,7 +15,7 @@
     let railKeyToGroup = {};  // railKey -> groupKey
     let pickMode = null;  // { purpose: 'nSignal'|'rSignal', switchId, pointKey }
     let pendingPointEdit = null;  // { switchId, pointKey, nSignal, rSignal, lineId }
-    let pendingSectionEdit = null;  // { sectionId, lineId, startSignal, endSignal }
+    let pendingSectionEdit = null;  // { sectionId, lineId, startSignal, endSignal, rails }
 
     function resize() {
         const dpr = window.devicePixelRatio || 1;
@@ -947,7 +947,10 @@
 
         content.innerHTML = `
             <h3>区間</h3>
-            <div class="field"><label>ID</label><div class="value">${escapeHtml(sectionId)}</div></div>
+            <div class="field">
+                <label>ID</label>
+                <input type="text" id="sectionIdInput" value="${escapeHtml(sectionId)}">
+            </div>
 
             <div class="field">
                 <label>開始信号 (startSignal)</label>
@@ -1091,12 +1094,36 @@
             alert('路線が見つかりません');
             return;
         }
+        
+        const idInput = document.getElementById('sectionIdInput');
+        const newId = idInput ? idInput.value.trim() : sectionId;
+        let currentId = sectionId;
+
+        if (newId && newId !== sectionId) {
+            try {
+                const rr = await fetch('/api/section/rename', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lineId, oldId: sectionId, newId })
+                });
+                const rres = await rr.json();
+                if (!rres.ok) {
+                    alert('名前変更失敗: ' + (rres.error || ''));
+                    return;
+                }
+                currentId = newId;
+            } catch (e) {
+                alert('通信エラー: ' + e);
+                return;
+            }
+        }
+
         try {
             const r = await fetch('/api/section/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    lineId, sectionId,
+                    lineId, sectionId: currentId,
                     startSignal: startSignal || null,
                     endSignal: endSignal || null,
                     rails: rails
@@ -1107,19 +1134,15 @@
                 alert('保存失敗: ' + (res.error || ''));
                 return;
             }
+            if (currentId !== sectionId) {
+                selected.id = currentId;
+                pendingSectionEdit.sectionId = currentId;
+            }
             currentVersion = -1;
             fetchMap();
         } catch (e) {
             alert('通信エラー: ' + e);
         }
-    }
-    function formatSignalRef(ref) {
-        if (!ref) return '(未設定)';
-        const dotIdx = ref.lastIndexOf('.');
-        if (dotIdx > 0 && /^P\d+$/.test(ref.substring(dotIdx + 1))) {
-            return ref + ' [分岐]';
-        }
-        return ref + ' [信号]';
     }
 
     async function saveSignal(key, type) {

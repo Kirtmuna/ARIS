@@ -87,6 +87,9 @@ public class WebApiHandler implements HttpHandler {
             case "/api/section/create":
                 result = createSection(req);
                 break;
+            case "/api/section/rename":
+                result = renameSection(req);
+                break;
             case "/api/section/delete":
                 result = deleteSection(req);
                 break;
@@ -408,6 +411,47 @@ public class WebApiHandler implements HttpHandler {
         r.put("ok", true);
         return r;
     }
+
+    private Map<String, Object> renameSection(Map<String, Object> req) {
+        String lineId = (String) req.get("lineId");
+        String oldId = (String) req.get("oldId");
+        String newId = (String) req.get("newId");
+
+        Map<String, Object> r = new HashMap<>();
+        if (lineId == null || oldId == null || newId == null || newId.isEmpty()) {
+            r.put("ok", false);
+            r.put("error", "lineId/oldId/newId required");
+            return r;
+        }
+        if (oldId.equals(newId)) {
+            r.put("ok", true);
+            return r;
+        }
+
+        LineManager.reloadLine(lineId);
+        LineConfig cfg = LineManager.getLine(lineId);
+        if (cfg == null || cfg.sections == null || !cfg.sections.containsKey(oldId)) {
+            r.put("ok", false);
+            r.put("error", "section not found: " + oldId);
+            return r;
+        }
+        if (cfg.sections.containsKey(newId)) {
+            r.put("ok", false);
+            r.put("error", "section already exists: " + newId);
+            return r;
+        }
+
+        LineConfig.SectionConfig sc = cfg.sections.remove(oldId);
+        cfg.sections.put(newId, sc);
+
+        LineManager.saveLine(lineId);
+        LineStateManager.initializeStates();
+        ServerLineSyncHandler.broadcastLineList(
+                FMLCommonHandler.instance().getMinecraftServerInstance());
+
+        r.put("ok", true);
+        return r;
+    }
     
     private int findAspectAt(WorldServer world, BlockPos pos) {
         for (String lineId : LineManager.getAllLines().keySet()) {
@@ -423,20 +467,6 @@ public class WebApiHandler implements HttpHandler {
             }
         }
         return -1;
-    }
-
-    private int[] parseCoordKey(String key) {
-        String[] parts = key.split(",");
-        if (parts.length != 3) return null;
-        try {
-            return new int[]{
-                    Integer.parseInt(parts[0].trim()),
-                    Integer.parseInt(parts[1].trim()),
-                    Integer.parseInt(parts[2].trim())
-            };
-        } catch (NumberFormatException e) {
-            return null;
-        }
     }
 
     private Map<String, Object> err(String msg) {
