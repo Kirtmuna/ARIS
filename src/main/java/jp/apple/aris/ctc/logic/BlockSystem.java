@@ -66,11 +66,16 @@ public class BlockSystem {
         // 2.5 ポイントの鎖錠
         if (points != null) {
             for (SwitchState p : points.values()) {
-                SignalState closed = p.getClosedSignal();
-                if (closed != null) closed.setSignal(world, 0);
+                for (SignalState closed : p.getClosedSignals()) {
+                    if (closed != null) closed.setSignal(world, 0);
+                }
                 if (p.getCurrentPosition() == SwitchPosition.UNKNOWN) {
-                    if (p.getNormalSignal() != null) p.getNormalSignal().setSignal(world, 0);
-                    if (p.getReverseSignal() != null) p.getReverseSignal().setSignal(world, 0);
+                    for (SignalState s : p.getNormalSignals()) {
+                        if (s != null) s.setSignal(world, 0);
+                    }
+                    for (SignalState s : p.getReverseSignals()) {
+                        if (s != null) s.setSignal(world, 0);
+                    }
                 }
             }
             Map<String, RouteState> routes = LineStateManager.getRoutes();
@@ -92,8 +97,12 @@ public class BlockSystem {
             for (SwitchState p : points.values()) {
                 if (activeRouteSwitches.contains(p.getSwitchId())
                         && !activeRoutePoints.contains(p.getPointId())) {
-                    if (p.getNormalSignal() != null) p.getNormalSignal().setSignal(world, 0);
-                    if (p.getReverseSignal() != null) p.getReverseSignal().setSignal(world, 0);
+                    for (SignalState s : p.getNormalSignals()) {
+                        if (s != null) s.setSignal(world, 0);
+                    }
+                    for (SignalState s : p.getReverseSignals()) {
+                        if (s != null) s.setSignal(world, 0);
+                    }
                 }
             }
         }

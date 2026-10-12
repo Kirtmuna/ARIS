@@ -17,8 +17,8 @@ public class LineConfig {
         public Map<String, PointConfig> points;
 
         public static class PointConfig {
-            public String nSignal;
-            public String rSignal;
+            public String[] nSignals;
+            public String[] rSignals;
         }
     }
     // 区間-config

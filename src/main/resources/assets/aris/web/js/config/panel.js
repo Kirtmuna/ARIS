@@ -382,33 +382,43 @@ function renderSwitchPanel(content) {
         content.innerHTML = `<h3>分岐</h3><div class="field">ポイントが選択されていません</div>`;
         return;
     }
-    const { switchId, pointKey, nSignal, rSignal } = state.pendingPointEdit;
+    const { switchId, pointKey, nSignals, rSignals } = state.pendingPointEdit;
 
     const pickN = state.pickMode && state.pickMode.purpose === 'nSignal';
     const pickR = state.pickMode && state.pickMode.purpose === 'rSignal';
+
+    const renderSigList = (arr, kind) => {
+        if (!arr || arr.length === 0) {
+            return '<div class="listRow empty">(未設定)</div>';
+        }
+        return arr.map((s, i) => `
+            <div class="listRow">
+                <span class="mono">${escapeHtml(s)}</span>
+                <button class="sigRemove danger" data-kind="${kind}" data-idx="${i}">×</button>
+            </div>
+        `).join('');
+    };
 
     content.innerHTML = `
         <h3>分岐ポイント</h3>
         <div class="field"><label>スイッチ</label><div class="value">${escapeHtml(switchId)}</div></div>
         <div class="field"><label>ポイント</label><div class="value">${escapeHtml(pointKey)}</div></div>
         <div class="field">
-            <label>N信号 (NORMAL時)</label>
-            <div class="value">${nSignal ? escapeHtml(nSignal) : '(未設定)'}</div>
+            <label>N信号 (NORMAL時・${nSignals.length}個)</label>
+            <div class="listBoxReadonly">${renderSigList(nSignals, 'n')}</div>
             <div class="buttonRow">
                 <button id="btnPickN" class="${pickN ? 'active' : ''}">
-                    ${pickN ? '選択中...' : '選択'}
+                    ${pickN ? '選択中...' : '追加'}
                 </button>
-                <button id="btnClearN" class="danger" ${nSignal ? '' : 'disabled'}>削除</button>
             </div>
         </div>
         <div class="field">
-            <label>R信号 (REVERSE時)</label>
-            <div class="value">${rSignal ? escapeHtml(rSignal) : '(未設定)'}</div>
+            <label>R信号 (REVERSE時・${rSignals.length}個)</label>
+            <div class="listBoxReadonly">${renderSigList(rSignals, 'r')}</div>
             <div class="buttonRow">
                 <button id="btnPickR" class="${pickR ? 'active' : ''}">
-                    ${pickR ? '選択中...' : '選択'}
+                    ${pickR ? '選択中...' : '追加'}
                 </button>
-                <button id="btnClearR" class="danger" ${rSignal ? '' : 'disabled'}>削除</button>
             </div>
         </div>
         <div class="field"><button id="btnSwitchSave">保存</button></div>
@@ -426,17 +436,22 @@ function renderSwitchPanel(content) {
         renderPanelTop();
         draw();
     });
-    document.getElementById('btnClearN').addEventListener('click', () => {
-        state.pendingPointEdit.nSignal = '';
-        if (state.pickMode && state.pickMode.purpose === 'nSignal') state.pickMode = null;
-        renderPanelTop();
-        draw();
+
+    content.querySelectorAll('.sigRemove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const kind = btn.dataset.kind;
+            const idx = parseInt(btn.dataset.idx, 10);
+            if (isNaN(idx)) return;
+            if (kind === 'n' && idx >= 0 && idx < state.pendingPointEdit.nSignals.length) {
+                state.pendingPointEdit.nSignals.splice(idx, 1);
+            } else if (kind === 'r' && idx >= 0 && idx < state.pendingPointEdit.rSignals.length) {
+                state.pendingPointEdit.rSignals.splice(idx, 1);
+            }
+            renderPanelTop();
+            draw();
+        });
     });
-    document.getElementById('btnClearR').addEventListener('click', () => {
-        state.pendingPointEdit.rSignal = '';
-        if (state.pickMode && state.pickMode.purpose === 'rSignal') state.pickMode = null;
-        renderPanelTop();
-        draw();
-    });
+
     document.getElementById('btnSwitchSave').addEventListener('click', saveSwitchPoint);
 }

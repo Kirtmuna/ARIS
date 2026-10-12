@@ -201,8 +201,8 @@ public class ArisMapCache {
                     for (PointEntry pe : entry.points) {
                         if (!sc.points.containsKey(pe.key)) {
                             LineConfig.SwitchConfig.PointConfig pc = new LineConfig.SwitchConfig.PointConfig();
-                            pc.nSignal = null;
-                            pc.rSignal = null;
+                            pc.nSignals = null;
+                            pc.rSignals = null;
                             sc.points.put(pe.key, pc);
                             lineConfigChanged = true;
                             ArisCore.LOGGER.info("ARIS: 分岐 '{}' にポイント '{}' を追加登録しました", key, pe.key);

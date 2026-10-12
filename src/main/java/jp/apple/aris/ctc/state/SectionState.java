@@ -31,7 +31,18 @@ public class SectionState {
     /** 次の信号を現在の状態から解決する、できなければnull */
     public SignalState resolveNextSignal() {
         if (endSignal != null) return endSignal;
-        if (endPoint != null) return endPoint.getActiveSignal();
+        if (endPoint != null) {
+            List<SignalState> actives = endPoint.getActiveSignals();
+            SignalState mostRestrictive = null;
+            for (SignalState s : actives) {
+                if (s == null) continue;
+                if (mostRestrictive == null
+                        || s.getCurrentAspect() < mostRestrictive.getCurrentAspect()) {
+                    mostRestrictive = s;
+                }
+            }
+            return mostRestrictive;
+        }
         return null;
     }
     /** 終端が何らかの形で設定されているか */

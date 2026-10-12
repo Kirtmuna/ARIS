@@ -64,8 +64,23 @@ public class LineStateManager {
                             continue;
                         }
                         LineConfig.SwitchConfig.PointConfig pc = ptEntry.getValue();
-                        POINTS.put(pointKey, new SwitchState(pointKey, switchKey, r, index,
-                                SIGNALS.get(pc.nSignal), SIGNALS.get(pc.rSignal)));
+                        List<SignalState> nSigs = new ArrayList<>();
+                        if (pc.nSignals != null) {
+                            for (String sid : pc.nSignals) {
+                                SignalState s = SIGNALS.get(sid);
+                                if (s != null) nSigs.add(s);
+                                else ArisCore.LOGGER.warn("ARIS: 分岐 '{}' の N信号 '{}' が見つかりません", pointKey, sid);
+                            }
+                        }
+                        List<SignalState> rSigs = new ArrayList<>();
+                        if (pc.rSignals != null) {
+                            for (String sid : pc.rSignals) {
+                                SignalState s = SIGNALS.get(sid);
+                                if (s != null) rSigs.add(s);
+                                else ArisCore.LOGGER.warn("ARIS: 分岐 '{}' の R信号 '{}' が見つかりません", pointKey, sid);
+                            }
+                        }
+                        POINTS.put(pointKey, new SwitchState(pointKey, switchKey, r, index, nSigs, rSigs));
                     }
                 }
             }

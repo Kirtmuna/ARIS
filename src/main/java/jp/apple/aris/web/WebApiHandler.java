@@ -259,11 +259,12 @@ public class WebApiHandler implements HttpHandler {
         return r;
     }
 
+    @SuppressWarnings("unchecked")
     private Map<String, Object> updateSwitchPoint(Map<String, Object> req) {
         String switchId = (String) req.get("switchId");
         String pointKey = (String) req.get("pointKey");
-        String nSignal = (String) req.get("nSignal");
-        String rSignal = (String) req.get("rSignal");
+        Object nSigsObj = req.get("nSignals");
+        Object rSigsObj = req.get("rSignals");
 
         Map<String, Object> r = new HashMap<>();
         if (switchId == null || pointKey == null) {
@@ -285,8 +286,8 @@ public class WebApiHandler implements HttpHandler {
             sc.points.put(pointKey, new LineConfig.SwitchConfig.PointConfig());
         }
         LineConfig.SwitchConfig.PointConfig pc = sc.points.get(pointKey);
-        pc.nSignal = (nSignal == null || nSignal.isEmpty()) ? null : nSignal;
-        pc.rSignal = (rSignal == null || rSignal.isEmpty()) ? null : rSignal;
+        pc.nSignals = toStringArray(nSigsObj);
+        pc.rSignals = toStringArray(rSigsObj);
 
         LineManager.save();
         LineStateManager.initializeStates();
@@ -295,6 +296,17 @@ public class WebApiHandler implements HttpHandler {
 
         r.put("ok", true);
         return r;
+    }
+
+    private static String[] toStringArray(Object obj) {
+        if (!(obj instanceof List)) return new String[0];
+        List<String> list = new ArrayList<>();
+        for (Object o : (List<?>) obj) {
+            if (o instanceof String && !((String) o).isEmpty() && !list.contains(o)) {
+                list.add((String) o);
+            }
+        }
+        return list.toArray(new String[0]);
     }
 
     @SuppressWarnings("unchecked")

@@ -12,7 +12,7 @@ export const state = {
     lineConfig: null,
     railKeyToGroup: {},
     pickMode: null,
-    pendingPointEdit: null,    // { switchId, pointKey, nSignal, rSignal }
+    pendingPointEdit: null,    // { switchId, pointKey, nSignals[], rSignals[] }
     pendingSectionEdit: null,  // { sectionId, startSignal, endSignal, rails }
     pendingRouteEdit: null,    // { routeId, sections, nPoint, rPoint }
     selected: { list: null, id: null },

@@ -40,16 +40,17 @@ export function selectPoint(switchId, pointKey) {
     state.pendingSectionEdit = null;
     state.pendingRouteEdit = null;
 
-    let nSig = '', rSig = '';
+    let nSignals = [];
+    let rSignals = [];
     const lc = state.lineConfig;
     if (lc && lc.switches && lc.switches[switchId]
     && lc.switches[switchId].points
     && lc.switches[switchId].points[pointKey]) {
         const p = lc.switches[switchId].points[pointKey];
-        nSig = p.nSignal || '';
-        rSig = p.rSignal || '';
+        if (Array.isArray(p.nSignals)) nSignals = p.nSignals.slice();
+        if (Array.isArray(p.rSignals)) rSignals = p.rSignals.slice();
     }
-    state.pendingPointEdit = { switchId, pointKey, nSignal: nSig, rSignal: rSig };
+    state.pendingPointEdit = { switchId, pointKey, nSignals, rSignals };
     state.pickMode = null;
     renderPanelTop();
     draw();
@@ -59,9 +60,13 @@ export function onPickedSignal(signalKey) {
     const pm = state.pickMode;
     if (!pm) return;
     if (pm.purpose === 'nSignal' && state.pendingPointEdit) {
-        state.pendingPointEdit.nSignal = signalKey;
+        if (!state.pendingPointEdit.nSignals.includes(signalKey)) {
+            state.pendingPointEdit.nSignals.push(signalKey);
+        }
     } else if (pm.purpose === 'rSignal' && state.pendingPointEdit) {
-        state.pendingPointEdit.rSignal = signalKey;
+        if (!state.pendingPointEdit.rSignals.includes(signalKey)) {
+            state.pendingPointEdit.rSignals.push(signalKey);
+        }
     } else if (pm.purpose === 'startSignal' && state.pendingSectionEdit) {
         state.pendingSectionEdit.startSignal = signalKey;
     } else if (pm.purpose === 'endSignal' && state.pendingSectionEdit) {
@@ -287,16 +292,12 @@ export async function saveSignal(key, type) {
 
 export async function saveSwitchPoint() {
     if (!state.pendingPointEdit) return;
-    const { switchId, pointKey, nSignal, rSignal } = state.pendingPointEdit;
+    const { switchId, pointKey, nSignals, rSignals } = state.pendingPointEdit;
     try {
         const r = await fetch('/api/switch/update', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                switchId, pointKey,
-                nSignal: nSignal || null,
-                rSignal: rSignal || null
-            })
+            body: JSON.stringify({ switchId, pointKey, nSignals, rSignals })
         });
         const res = await r.json();
         if (!res.ok) { alert('保存失敗: ' + (res.error || '')); return; }

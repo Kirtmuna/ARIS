@@ -10,24 +10,28 @@ import jp.ngt.rtm.rail.util.SwitchType;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 public class SwitchState {
     private final String pointId;          // 合成ID ("SW001.P0")
     private final String switchId;         // 親Core側のID ("SW001")
     private final RailState rail;          // 親Coreのレール参照
     private final int pointIndex;          // SwitchType.getPoints()内でのindex
-    private final SignalState normalSignal;
-    private final SignalState reverseSignal;
+    private final List<SignalState> normalSignals;
+    private final List<SignalState> reverseSignals;
 
     private SwitchPosition currentPosition = SwitchPosition.UNKNOWN;
 
     public SwitchState(String pointId, String switchId, RailState rail, int pointIndex,
-                      SignalState nSig, SignalState rSig) {
+                       List<SignalState> nSigs, List<SignalState> rSigs) {
         this.pointId = pointId;
         this.switchId = switchId;
         this.rail = rail;
         this.pointIndex = pointIndex;
-        this.normalSignal = nSig;
-        this.reverseSignal = rSig;
+        this.normalSignals = (nSigs != null) ? nSigs : new ArrayList<>();
+        this.reverseSignals = (rSigs != null) ? rSigs : new ArrayList<>();
     }
     /** RTM側の転換状態を読む */
     public void updateFromWorld(World world) {
@@ -67,19 +71,19 @@ public class SwitchState {
         return p.rpRoot.checkRSInput(world) ? SwitchPosition.REVERSE : SwitchPosition.NORMAL;
     }
     /** 現在の向きに対応する信号 */
-    public SignalState getActiveSignal() {
+    public List<SignalState> getActiveSignals() {
         switch (currentPosition) {
-            case NORMAL: return normalSignal;
-            case REVERSE: return reverseSignal;
-            default: return null;
+            case NORMAL: return normalSignals;
+            case REVERSE: return reverseSignals;
+            default: return Collections.emptyList();
         }
     }
     /** 現在の向きと逆側の信号 */
-    public SignalState getClosedSignal() {
+    public List<SignalState> getClosedSignals() {
         switch (currentPosition) {
-            case NORMAL: return reverseSignal;
-            case REVERSE: return normalSignal;
-            default: return null;
+            case NORMAL: return reverseSignals;
+            case REVERSE: return normalSignals;
+            default: return Collections.emptyList();
         }
     }
 
@@ -105,7 +109,7 @@ public class SwitchState {
 
     public String getPointId() { return pointId; }
     public String getSwitchId() { return switchId; }
-    public SignalState getNormalSignal() { return normalSignal; }
-    public SignalState getReverseSignal() { return reverseSignal; }
+    public List<SignalState> getNormalSignals() { return normalSignals; }
+    public List<SignalState> getReverseSignals() { return reverseSignals; }
     public SwitchPosition getCurrentPosition() { return currentPosition; }
 }
