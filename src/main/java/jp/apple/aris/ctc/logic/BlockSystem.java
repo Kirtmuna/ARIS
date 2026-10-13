@@ -6,9 +6,7 @@ import jp.apple.aris.ctc.enums.SwitchPosition;
 import jp.apple.aris.ctc.state.*;
 import net.minecraft.world.World;
 
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class BlockSystem {
     /**
@@ -35,7 +33,9 @@ public class BlockSystem {
             section.setStatus(section.checkAnyRailOccupied() ? 1 : 0);
         }
 
-        // 2. 現示の出力
+        // 2. 各信号の最終現示を調停方式で決める
+        Map<SignalState, List<Integer>> claims = new HashMap<>();
+        // 2a. 区間制御の主張を集める
         for (SectionState section : sectionMap.values()) {
             if (section == null || section.getStartSignal() == null) continue;
             SignalState startSig = section.getStartSignal();
@@ -51,20 +51,22 @@ public class BlockSystem {
             } else {
                 idealLevel = 2;
             }
-            startSig.setSignalByLevel(world, idealLevel);
+            claims.computeIfAbsent(startSig, k -> new ArrayList<>()).add(idealLevel);
         }
-        // 2.5 ポイントの鎖錠
+        // 2b. ポイント鎖錠の主張を集める
         if (points != null) {
             for (SwitchState p : points.values()) {
                 for (SignalState closed : p.getClosedSignals()) {
-                    if (closed != null) closed.setSignal(world, 0);
+                    if (closed != null) {
+                        claims.computeIfAbsent(closed, k -> new ArrayList<>()).add(1);
+                    }
                 }
                 if (p.getCurrentPosition() == SwitchPosition.UNKNOWN) {
                     for (SignalState s : p.getNormalSignals()) {
-                        if (s != null) s.setSignal(world, 0);
+                        if (s != null) claims.computeIfAbsent(s, k -> new ArrayList<>()).add(1);
                     }
                     for (SignalState s : p.getReverseSignals()) {
-                        if (s != null) s.setSignal(world, 0);
+                        if (s != null) claims.computeIfAbsent(s, k -> new ArrayList<>()).add(1);
                     }
                 }
             }
@@ -88,21 +90,29 @@ public class BlockSystem {
                 if (activeRouteSwitches.contains(p.getSwitchId())
                         && !activeRoutePoints.contains(p.getPointId())) {
                     for (SignalState s : p.getNormalSignals()) {
-                        if (s != null) s.setSignal(world, 0);
+                        if (s != null) claims.computeIfAbsent(s, k -> new ArrayList<>()).add(1);
                     }
                     for (SignalState s : p.getReverseSignals()) {
-                        if (s != null) s.setSignal(world, 0);
+                        if (s != null) claims.computeIfAbsent(s, k -> new ArrayList<>()).add(1);
                     }
                 }
             }
         }
-        // 3. 無灯信号を停止現示にする
+        // 2c. 無灯信号の主張
         for (SignalState sig : LineStateManager.getSignals().values()) {
             if (!sig.isControlled()) {
-                sig.setSignal(world, 0);
+                claims.computeIfAbsent(sig, k -> new ArrayList<>()).add(1);
             }
         }
-        // 4. 進路の自動解放
+        // 2d. 最小値を採用
+        for (Map.Entry<SignalState, List<Integer>> e : claims.entrySet()) {
+            int finalLevel = 6;
+            for (int v : e.getValue()) {
+                if (v < finalLevel) finalLevel = v;
+            }
+            e.getKey().setSignalByLevel(world, finalLevel);
+        }
+        // 3. 進路の自動解放
         runRouteAutoRelease(world);
     }
 
