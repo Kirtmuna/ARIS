@@ -32,10 +32,7 @@ public class ArisApiUtil {
         TileEntityLargeRailCore core = bogie.getCurrentRailObj();
         if (core == null) return CURRENT_SECTION.get(train);
 
-        BlockPos corePos = core.getPos();
-        String key = corePos.getX() + "," + corePos.getY() + "," + corePos.getZ();
-        
-        SectionState found = findSectionByRailKey(key);
+        SectionState found = LineStateManager.findSectionByRailPos(core.getPos());
         if (found != null) {
             CURRENT_SECTION.put(train, found);
         }

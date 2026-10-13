@@ -3,6 +3,7 @@ package jp.apple.aris.ctc.state;
 import jp.apple.aris.ArisCore;
 import jp.apple.aris.ctc.config.LineConfig;
 import jp.apple.aris.ctc.config.LineManager;
+import net.minecraft.util.math.BlockPos;
 
 import java.util.*;
 
@@ -12,6 +13,7 @@ public class LineStateManager {
     private static Map<String, SectionState> SECTIONS = new HashMap<>();
     private static Map<String, SwitchState> POINTS = new HashMap<>();
     private static Map<String, RouteState> ROUTES = new HashMap<>();
+    private static Map<String, SectionState> RAIL_TO_SECTION = new HashMap<>();
 
     /**
      * LineConfigを元にすべてのStateインスタンスを生成する
@@ -175,6 +177,16 @@ public class LineStateManager {
         }
 
         ArisCore.LOGGER.info("ARIS: 路線のインスタンス化が完了 (区間数: {})", SECTIONS.size());
+
+        RAIL_TO_SECTION = new HashMap<>();
+        for (SectionState sec : SECTIONS.values()) {
+            for (RailState rail : sec.getSectionRails()) {
+                if (rail == null) continue;
+                BlockPos p = rail.getRailPosition();
+                if (p == null) continue;
+                RAIL_TO_SECTION.put(key(new int[]{p.getX(), p.getY(), p.getZ()}), sec);
+            }
+        }
     }
 
     public static Map<String, SectionState> getSections() { return SECTIONS; }
@@ -203,5 +215,13 @@ public class LineStateManager {
         } catch (NumberFormatException e) {
             return -1;
         }
+    }
+    /**
+     * rail座標から所属する SectionState を引く
+     * RailState.railPosition の更新周期に依存しない逆引き用
+     */
+    public static SectionState findSectionByRailPos(BlockPos railPos) {
+        if (railPos == null) return null;
+        return RAIL_TO_SECTION.get(key(new int[]{railPos.getX(), railPos.getY(), railPos.getZ()}));
     }
 }
