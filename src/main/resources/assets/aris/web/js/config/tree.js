@@ -9,9 +9,19 @@ export function newFolderId() {
     return 'f_' + Date.now() + '_' + (folderCounter++);
 }
 
+function treeKey() {
+    return STORAGE_KEY + '.' + (state.worldName || '_default');
+}
+
+function resetTreeState() {
+    state.treeState.sections = { folders: {}, assignments: {}, order: [] };
+    state.treeState.routes   = { folders: {}, assignments: {}, order: [] };
+}
+
 export function loadTreeState() {
+    resetTreeState();
     try {
-        const s = localStorage.getItem(STORAGE_KEY);
+        const s = localStorage.getItem(treeKey());
         if (!s) return;
         const p = JSON.parse(s);
         if (p.sections) state.treeState.sections = p.sections;
@@ -27,7 +37,7 @@ export function loadTreeState() {
 
 export function saveTreeState() {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.treeState));
+        localStorage.setItem(treeKey(), JSON.stringify(state.treeState));
     } catch (e) { console.warn('tree save failed', e); }
 }
 
@@ -39,14 +49,6 @@ export function syncItemsFromServer() {
 
 function syncList(listKey, serverItems) {
     const t = state.treeState[listKey];
-    const set = new Set(serverItems);
-
-    for (const id of Object.keys(t.assignments)) {
-        if (!set.has(id)) {
-            delete t.assignments[id];
-            t.order = t.order.filter(x => x !== id);
-        }
-    }
     for (const id of serverItems) {
         if (!t.order.includes(id)) {
             t.order.push(id);

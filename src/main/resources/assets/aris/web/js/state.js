@@ -1,5 +1,6 @@
 export const state = {
     // ===== 設定ページ =====
+    worldName: null,
     canvas: null,
     ctx: null,
     camera: { x: 0, y: 0, scale: 1.5 },

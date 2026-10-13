@@ -224,6 +224,14 @@ public class WebApiHandler implements HttpHandler {
         m.put("routes", routeIds);
         m.put("lineConfig", cfg);
         m.put("points", pointMarks);
+        
+        MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
+        if (server != null) {
+            WorldServer w = server.getWorld(0);
+            if (w != null) {
+                m.put("worldName", w.provider.getDimensionType().getName() + ":" + w.getWorldInfo().getWorldName());
+            }
+        }
         return m;
     }
 

@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { syncItemsFromServer, renderList } from './config/tree.js';
+import { syncItemsFromServer, renderList, loadTreeState } from './config/tree.js';
 import { draw } from './config/map.js';
 import { drawOperation } from './operation/map.js';
 import { renderRouteList } from './operation/route_list.js';
@@ -8,6 +8,13 @@ export async function fetchMap() {
     try {
         const r = await fetch('/api/map');
         const data = await r.json();
+        
+        const newWorld = data.worldName || '_default';
+        if (newWorld !== state.worldName) {
+            state.worldName = newWorld;
+            loadTreeState();
+        }
+
         state.rails = data.rails || [];
         state.railKeyToGroup = {};
         for (const r of state.rails) {
