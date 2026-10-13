@@ -417,3 +417,22 @@ task copyJarToTest(type: Copy) {
 }
 
 build.dependsOn copyJarToTest
+
+// (./gradlew publish)
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = 'jp.apple'
+            artifactId = 'ARIS-forge1.12.2'
+            version = project.version
+            artifact tasks.named('reobfJar')
+        }
+    }
+
+    repositories {
+        maven {
+            name = 'localStaticRepo'
+            url = uri(layout.projectDirectory.dir("../kirtmuna-maven"))
+        }
+    }
+}
