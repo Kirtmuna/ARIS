@@ -73,4 +73,24 @@ public enum SignalType {
         }
         return this.Levels[aspectIndex];
     }
+    public int upLevel(int nextLevel) {
+        int ideal = Math.min(nextLevel + 1, 6);
+        return snapToAvailable(ideal);
+    }
+    private int snapToAvailable(int ideal) {
+        if (isAvailable(ideal)) return ideal;
+        for (int lv = ideal + 1; lv <= 6; lv++) {
+            if (isAvailable(lv)) return lv;
+        }
+        for (int lv = ideal - 1; lv >= 1; lv--) {
+            if (isAvailable(lv)) return lv;
+        }
+        return 1;
+    }
+    private boolean isAvailable(int level) {
+        for (int lv : this.Levels) {
+            if (lv == level) return true;
+        }
+        return false;
+    }
 }

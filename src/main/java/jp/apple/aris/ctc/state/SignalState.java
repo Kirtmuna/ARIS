@@ -11,10 +11,8 @@ public class SignalState {
     private final String signalId;
     // 全信号機座標を入れる
     private final BlockPos[] signalPositions;
-    // 現在の信号レベルの状態
-    private int currentSignalLevel = 0;
-    // 共通現示インデックス (0=停止, 1=警戒, 2=注意, 3=減速, 4=進行, 5=高速進行)
-    private int currentAspect = 0; // 最初は停止で初期化
+    private int currentSignalLevel = 1;
+    private int currentAspect = 0;
     // 灯数
     private final SignalType signalType;
     // 区間に扱われているかどうかのフラグ
@@ -25,32 +23,34 @@ public class SignalState {
         this.signalPositions = new BlockPos[]{ PositionUtil.toBlockPos(pos) };
         this.signalType = SignalType.fromKey(type);
     }
-    /**
-     * 現示の設定、RTM信号の同期
-     * @param world 信号機が存在するワールドのインスタンス
-     * @param aspectIndex 設定したい共通現示インデックス (0=停止〜5=高速進行)
-     */
-    public void setSignal(World world, int aspectIndex) {
-        this.currentAspect = aspectIndex;
-        int level = this.signalType.getLevel(aspectIndex);
-        
+    public void setSignalByLevel(World world, int level) {
+        if (level < 1) level = 1;
+        if (level > 6) level = 6;
+
         this.currentSignalLevel = level;
-        
-        if (world == null || world.isRemote) {
-            return;
-        }
+        this.currentAspect = aspectOfLevel(level);
+
+        if (world == null || world.isRemote) return;
+
         for (BlockPos pos : this.signalPositions) {
-            if (!world.isBlockLoaded(pos)) {
-                continue;
-            }
-            
+            if (!world.isBlockLoaded(pos)) continue;
             TileEntity te = world.getTileEntity(pos);
-            
             if (te instanceof TileEntitySignal) {
-                TileEntitySignal rtmSignal = (TileEntitySignal) te;
-                rtmSignal.setElectricity(pos.getX(), pos.getY(), pos.getZ(), level);
+                ((TileEntitySignal) te).setElectricity(pos.getX(), pos.getY(), pos.getZ(), level);
             }
         }
+    }
+    public void setSignal(World world, int aspectIndex) {
+        int level = this.signalType.getLevel(aspectIndex);
+        setSignalByLevel(world, level);
+    }
+    private int aspectOfLevel(int level) {
+        for (int a = 0; a < 6; a++) {
+            if (this.signalType.getLevel(a) == level) {
+                return a;
+            }
+        }
+        return 0;
     }
     public void setControlled(boolean controlled) {
         this.isControlled = controlled;

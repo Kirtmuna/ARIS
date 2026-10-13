@@ -34,10 +34,11 @@ public class SectionState {
         if (endPoint != null) {
             List<SignalState> actives = endPoint.getActiveSignals();
             SignalState mostRestrictive = null;
-            for (SignalState s : actives) {
+            for (SignalState s : endPoint.getActiveSignals()) {
                 if (s == null) continue;
+                if (!s.isControlled()) continue;
                 if (mostRestrictive == null
-                        || s.getCurrentAspect() < mostRestrictive.getCurrentAspect()) {
+                        || s.getCurrentLevel() < mostRestrictive.getCurrentLevel()) {
                     mostRestrictive = s;
                 }
             }

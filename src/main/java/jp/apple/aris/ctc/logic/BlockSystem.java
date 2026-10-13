@@ -40,28 +40,18 @@ public class BlockSystem {
             if (section == null || section.getStartSignal() == null) continue;
             SignalState startSig = section.getStartSignal();
 
-            int idealAspect;
+            int idealLevel;
             if (section.getStatus() == 1) {
-                idealAspect = 0;
+                idealLevel = 1;
             } else if (section.hasEndpoint()) {
                 SignalState next = section.resolveNextSignal();
-                int nextAspect = (next != null && next.isControlled()) ? next.getCurrentAspect() : 0;
-                idealAspect = (nextAspect == 0) ? 1 : Math.min(nextAspect + 1, 5);
+                int nextLevel = (next != null && next.isControlled())
+                        ? next.getCurrentLevel() : 1;
+                idealLevel = startSig.getSignalType().upLevel(nextLevel);
             } else {
-                idealAspect = 1;
+                idealLevel = 2;
             }
-            int targetAspect = idealAspect;
-            if (section.getStatus() == 0 && targetAspect > 0) {
-                while (targetAspect < 5 && startSig.getSignalType().getLevel(targetAspect) == startSig.getSignalType().getLevel(0)) {
-                    targetAspect++;
-                }
-                if (startSig.getSignalType().getLevel(targetAspect) == startSig.getSignalType().getLevel(0)) {
-                    while (targetAspect > 0 && startSig.getSignalType().getLevel(targetAspect) == startSig.getSignalType().getLevel(0)) {
-                        targetAspect--;
-                    }
-                }
-            }
-            startSig.setSignal(world, targetAspect);
+            startSig.setSignalByLevel(world, idealLevel);
         }
         // 2.5 ポイントの鎖錠
         if (points != null) {
