@@ -453,17 +453,18 @@ public class ArisMapCache {
     }
     
     public synchronized void load() {
+        rails.clear();
+        signals.clear();
+        signalAspects.clear();
+        switches.clear();
+        railGroups.clear();
+        version = 0;
+        
         File f = getCacheFile();
         if (!f.exists()) return;
         try (Reader r = new InputStreamReader(new FileInputStream(f), StandardCharsets.UTF_8)) {
             Map<String, Object> data = GSON.fromJson(r, Map.class);
             if (data == null) return;
-
-            rails.clear();
-            signals.clear();
-            signalAspects.clear();
-            switches.clear();
-            railGroups.clear();
 
             Object railsObj = data.get("rails");
             if (railsObj instanceof Map) {

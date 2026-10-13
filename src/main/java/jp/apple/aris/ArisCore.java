@@ -27,14 +27,13 @@ public class ArisCore {
         LOGGER.info("Loaded: {}",Tags.MOD_NAME);
 
         ArisNetwork.init();
-        
-        File currentModFile = event.getSourceFile();
-        File modsDirectory = currentModFile.getParentFile();
-        ArisDir.init(modsDirectory);
     }
     
     @Mod.EventHandler
     public void serverStarting(FMLServerStartingEvent event) {
+        File worldDir = event.getServer().getWorld(0).getSaveHandler().getWorldDirectory();
+        ArisDir.initWorld(worldDir);
+
         LineManager.load();
         LineStateManager.initializeStates();
         event.registerServerCommand(new CommandCtc());
