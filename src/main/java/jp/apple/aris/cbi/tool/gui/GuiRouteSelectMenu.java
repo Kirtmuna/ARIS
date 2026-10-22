@@ -4,7 +4,7 @@ import jp.apple.aris.ArisNetwork;
 import jp.apple.aris.cbi.tool.network.PacketRequestRoute;
 import jp.apple.aris.ctc.client.ClientLineCache;
 import jp.apple.aris.ctc.config.LineConfig;
-import jp.apple.gui.GuiAppleListSelector;
+import jp.apple.appleextended.gui.GuiAppleListSelector;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.util.EnumHand;

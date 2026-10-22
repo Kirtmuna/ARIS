@@ -19,7 +19,7 @@ public class ItemRouteRequestTool extends Item {
         this.setMaxStackSize(1);
         this.setTranslationKey("aris_route_request_tool");
         this.setRegistryName(ArisCore.ID, "route_request_tool");
-        this.setCreativeTab(jp.apple.AppleLib.tabAppleLib);
+        this.setCreativeTab(jp.apple.appleextended.AppleLib.tabAppleLib);
     }
 
     @Override
