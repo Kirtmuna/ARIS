@@ -13,6 +13,20 @@ public class WebStaticHandler implements HttpHandler {
     public void handle(HttpExchange ex) throws IOException {
         String path = ex.getRequestURI().getPath();
         if (path.equals("/") || path.isEmpty()) path = "/index.html";
+        
+        boolean publicPath = path.equals("/login.html")
+                || path.equals("/js/login.js")
+                || path.equals("/style.css");
+
+        if (!publicPath) {
+            String sid = ArisAuth.extractCookie(ex);
+            if (ArisAuth.checkSession(sid) == null) {
+                ex.getResponseHeaders().set("Location", "/login.html");
+                ex.sendResponseHeaders(302, -1);
+                ex.close();
+                return;
+            }
+        }
 
         String resourcePath = "/assets/aris/web" + path;
         InputStream in = WebStaticHandler.class.getResourceAsStream(resourcePath);

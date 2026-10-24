@@ -26,6 +26,7 @@ public class WebApiHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange ex) throws IOException {
+        if (ArisAuth.requireAuth(ex) == null) return;
         String path = ex.getRequestURI().getPath();
         String method = ex.getRequestMethod();
 

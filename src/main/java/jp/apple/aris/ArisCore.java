@@ -3,11 +3,13 @@ package jp.apple.aris;
 import jp.apple.aris.ctc.command.CommandCtc;
 import jp.apple.aris.ctc.config.LineManager;
 import jp.apple.aris.ctc.state.LineStateManager;
+import jp.apple.aris.web.ArisAuth;
 import jp.apple.aris.web.ArisMapCache;
 import jp.apple.aris.web.ArisWebServer;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
+import net.minecraftforge.fml.common.event.FMLServerStoppingEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -36,6 +38,11 @@ public class ArisCore {
         LineStateManager.initializeStates();
         event.registerServerCommand(new CommandCtc());
         ArisMapCache.get().load();
+        ArisAuth.loadSessions();
         ArisWebServer.start();
+    }
+    @Mod.EventHandler
+    public void serverStopping(FMLServerStoppingEvent event) {
+        ArisWebServer.stop();
     }
 }

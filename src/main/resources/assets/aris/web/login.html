@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <title>ARIS - Login</title>
+    <link href="/style.css" rel="stylesheet">
+</head>
+<body>
+<div id="loginWrap">
+    <div id="loginBox">
+        <h1>ARIS</h1>
+        <p class="hint">
+            ゲーム内で <code>/aris web</code> を実行し、<br>
+            表示されたコードを入力してください。
+        </p>
+        <div class="field">
+            <label>Minecraft ID</label>
+            <input type="text" id="mcidInput" autocomplete="username" autofocus>
+        </div>
+        <div class="field">
+            <label>コード (6桁)</label>
+            <input type="text" id="codeInput" inputmode="numeric"
+                   maxlength="6" autocomplete="one-time-code">
+        </div>
+        <button id="btnLogin">ログイン</button>
+        <div id="loginError" class="error"></div>
+    </div>
+</div>
+<script type="module" src="/js/login.js"></script>
+</body>
+</html>

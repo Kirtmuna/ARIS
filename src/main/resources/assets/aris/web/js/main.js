@@ -141,6 +141,24 @@ function setupPageNav() {
     });
 }
 
+(async () => {
+    try {
+        const r = await fetch('/api/me');
+        if (r.ok) {
+            const me = await r.json();
+            const el = document.getElementById('headerUser');
+            if (el) el.textContent = me.mcid;
+        } else {
+            location.href = '/login.html';
+        }
+    } catch (e) {}
+})();
+
+document.getElementById('btnLogout')?.addEventListener('click', async () => {
+    await fetch('/api/logout', { method: 'POST' });
+    location.href = '/login.html';
+});
+
 // 初期化
 loadTreeState();
 renderPanelTop();
