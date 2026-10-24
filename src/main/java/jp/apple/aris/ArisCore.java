@@ -14,7 +14,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.File;
 
 // ARIS : Automatic Route Integrated System
-@Mod(modid = Tags.MOD_ID,name = Tags.MOD_NAME,version = Tags.VERSION)
+@Mod(modid = Tags.MOD_ID,name = Tags.MOD_NAME,version = Tags.VERSION, acceptableRemoteVersions = "*")
 public class ArisCore {
     public static final String ID = Tags.MOD_ID;
     public static final String NAME = Tags.MOD_NAME;
