@@ -16,5 +16,9 @@ ARISはRTM-1.12.2でCTC/PRCの実現するためのModです。
 
 当 Mod を DL し、mods フォルダに入れてください。
 
+## 使用方法
+
+簡単な使い方については[こちら](docs/usage.md)を参照ください。
+
 ## ライセンス
 `GPL-3.0 license`
