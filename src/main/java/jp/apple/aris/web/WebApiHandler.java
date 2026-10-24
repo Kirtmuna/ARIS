@@ -6,13 +6,9 @@ import com.sun.net.httpserver.HttpHandler;
 import jp.apple.aris.cbi.Cbi;
 import jp.apple.aris.ctc.config.LineConfig;
 import jp.apple.aris.ctc.config.LineManager;
-import jp.apple.aris.ctc.network.ServerLineSyncHandler;
 import jp.apple.aris.ctc.state.*;
 import jp.ngt.rtm.electric.TileEntitySignal;
 import jp.ngt.rtm.rail.TileEntityLargeRailCore;
-import jp.ngt.rtm.rail.TileEntityLargeRailSwitchCore;
-import jp.ngt.rtm.rail.util.Point;
-import jp.ngt.rtm.rail.util.SwitchType;
 import jp.ngt.rtm.rail.util.RailMap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tileentity.TileEntity;
@@ -260,8 +256,6 @@ public class WebApiHandler implements HttpHandler {
 
         LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLine(
-                FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
         return r;
@@ -299,8 +293,6 @@ public class WebApiHandler implements HttpHandler {
 
         LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLine(
-                FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
         return r;
@@ -357,8 +349,6 @@ public class WebApiHandler implements HttpHandler {
 
         LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLine(
-                FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
         return r;
@@ -389,8 +379,6 @@ public class WebApiHandler implements HttpHandler {
 
         LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLine(
-                FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
         return r;
@@ -417,8 +405,6 @@ public class WebApiHandler implements HttpHandler {
 
         LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLine(
-                FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
         return r;
@@ -456,8 +442,6 @@ public class WebApiHandler implements HttpHandler {
 
         LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLine(
-                FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
         return r;
@@ -511,8 +495,6 @@ public class WebApiHandler implements HttpHandler {
 
         LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLine(
-                FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
         return r;
@@ -546,8 +528,6 @@ public class WebApiHandler implements HttpHandler {
 
         LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLine(
-                FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
         return r;
@@ -585,8 +565,6 @@ public class WebApiHandler implements HttpHandler {
 
         LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLine(
-                FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
         return r;
@@ -613,8 +591,6 @@ public class WebApiHandler implements HttpHandler {
 
         LineManager.save();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLine(
-                FMLCommonHandler.instance().getMinecraftServerInstance());
 
         r.put("ok", true);
         return r;

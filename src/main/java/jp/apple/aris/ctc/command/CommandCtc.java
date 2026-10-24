@@ -1,7 +1,6 @@
 package jp.apple.aris.ctc.command;
 
 import jp.apple.aris.ctc.config.LineManager;
-import jp.apple.aris.ctc.network.ServerLineSyncHandler;
 import jp.apple.aris.ctc.state.LineStateManager;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
@@ -36,7 +35,6 @@ public class CommandCtc extends CommandBase {
 
         LineManager.load();
         LineStateManager.initializeStates();
-        ServerLineSyncHandler.broadcastLine(server);
 
         sender.sendMessage(new TextComponentString(
                 TextFormatting.GREEN + "ARIS: 路線データをリロードしました"));

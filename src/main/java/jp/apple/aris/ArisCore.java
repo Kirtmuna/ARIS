@@ -25,8 +25,6 @@ public class ArisCore {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         LOGGER.info("Loaded: {}",Tags.MOD_NAME);
-
-        ArisNetwork.init();
     }
     
     @Mod.EventHandler

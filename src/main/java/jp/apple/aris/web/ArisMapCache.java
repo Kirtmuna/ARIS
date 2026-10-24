@@ -5,7 +5,6 @@ import com.google.gson.GsonBuilder;
 import jp.apple.aris.ArisCore;
 import jp.apple.aris.ctc.config.LineConfig;
 import jp.apple.aris.ctc.config.LineManager;
-import jp.apple.aris.ctc.network.ServerLineSyncHandler;
 import jp.apple.aris.ctc.state.LineStateManager;
 import jp.apple.aris.ctc.state.SignalState;
 import jp.apple.aris.ArisDir;
@@ -18,7 +17,6 @@ import jp.ngt.rtm.rail.util.SwitchType;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
-import net.minecraftforge.fml.common.FMLCommonHandler;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -362,8 +360,6 @@ public class ArisMapCache {
         if (lineConfigChanged) {
             LineManager.save();
             LineStateManager.initializeStates();
-            ServerLineSyncHandler.broadcastLine(
-                    FMLCommonHandler.instance().getMinecraftServerInstance());
             ArisCore.LOGGER.info("ARIS: 自動登録により路線データを再構築しました");
         }
     }
