@@ -1,5 +1,6 @@
 import { state } from './state.js';
 import { syncItemsFromServer, renderList, loadTreeState } from './config/tree.js';
+import { renderPanelTop } from './config/panel.js';
 import { draw } from './config/map.js';
 import { drawOperation } from './operation/map.js';
 import { renderRouteList } from './operation/route_list.js';
@@ -36,6 +37,7 @@ export async function fetchMap() {
         syncItemsFromServer();
         renderList('sections');
         renderList('routes');
+        renderPanelTop();
         draw();
         drawOperation();
         renderRouteList();

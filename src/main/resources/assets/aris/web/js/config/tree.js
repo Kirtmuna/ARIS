@@ -44,11 +44,39 @@ export function saveTreeState() {
 export function syncItemsFromServer() {
     syncList('sections', state.sectionsData);
     syncList('routes',   state.routesData);
+    pruneDeletedSelection();
     saveTreeState();
+}
+
+function pruneDeletedSelection() {
+    const { list, id } = state.selected;
+    if (!list || !id) return;
+
+    if (list === 'sections') {
+        if (state.treeState.sections.folders[id]) return;
+        if (state.sectionsData.includes(id)) return;
+        state.selected = { list: null, id: null };
+        state.pendingSectionEdit = null;
+        if (state.pickMode && state.pickMode.sectionId === id) state.pickMode = null;
+    } else if (list === 'routes') {
+        if (state.treeState.routes.folders[id]) return;
+        if (state.routesData.includes(id)) return;
+        state.selected = { list: null, id: null };
+        state.pendingRouteEdit = null;
+        if (state.pickMode && state.pickMode.routeId === id) state.pickMode = null;
+    }
 }
 
 function syncList(listKey, serverItems) {
     const t = state.treeState[listKey];
+    const serverSet = new Set(serverItems);
+
+    t.order = t.order.filter(id => {
+        if (t.folders[id]) return true;
+        if (serverSet.has(id)) return true;
+        delete t.assignments[id];
+        return false;
+    });
     for (const id of serverItems) {
         if (!t.order.includes(id)) {
             t.order.push(id);
